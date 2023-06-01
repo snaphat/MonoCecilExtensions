@@ -356,11 +356,11 @@ public static class MonoCecilExtensions
     #region UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
 
     /// <summary>
-    /// Updates the CustomAttributes and FieldType of the FieldDefinition to the destination type when merging classes.
+    /// If the FieldType of the given FieldDefinition is the source type, it updates it to the destination type.
     /// </summary>
-    /// <param name="field">FieldDefinition that needs its attributes and type updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <param name="field">FieldDefinition that may have its FieldType updated.</param>
+    /// <param name="src">The original type which might be replaced.</param>
+    /// <param name="dest">The new type which might replace the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this FieldDefinition field, TypeDefinition src, TypeDefinition dest)
     {
@@ -375,11 +375,11 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Updates the Constructor of the CustomAttributes and the PropertyType of the PropertyDefinition to the destination type when merging classes.
+    /// If the PropertyType of the given PropertyDefinition is the source type, it updates it to the destination type.
     /// </summary>
-    /// <param name="property">PropertyDefinition that needs its attributes' constructors and type updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <param name="property">PropertyDefinition that may have its PropertyType updated.</param>
+    /// <param name="src">The original type which might be replaced.</param>
+    /// <param name="dest">The new type which might replace the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
     {
@@ -394,11 +394,11 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Updates the ParameterType of the ParameterDefinition to the destination type when merging classes.
+    /// If the ParameterType of the given ParameterDefinition is the source type, it updates it to the destination type.
     /// </summary>
-    /// <param name="parameter">ParameterDefinition that needs its type updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <param name="parameter">ParameterDefinition that may have its ParameterType updated.</param>
+    /// <param name="src">The original type which might be replaced.</param>
+    /// <param name="dest">The new type which might replace the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this ParameterDefinition parameter, TypeDefinition src, TypeDefinition dest)
     {
@@ -413,11 +413,11 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Updates the VariableType of the VariableDefinition to the destination type when merging classes.
+    /// If the VariableType of the given VariableDefinition is the source type, it updates it to the destination type.
     /// </summary>
-    /// <param name="variable">VariableDefinition that needs its type updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <param name="variable">VariableDefinition that may have its VariableType updated.</param>
+    /// <param name="src">The original type which might be replaced.</param>
+    /// <param name="dest">The new type which might replace the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this VariableDefinition variable, TypeDefinition src, TypeDefinition dest)
     {
@@ -432,11 +432,11 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Updates the CustomAttributes, Parameters, ReturnType, Variables and Instructions of the MethodDefinition to the destination type when merging classes.
+    /// Updates ReturnType of the given MethodDefinition, and the types in its Parameters and Variables, if they are the source type, to the destination type.
     /// </summary>
-    /// <param name="method">MethodDefinition that needs its attributes, parameters, return type, variables and instructions updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <param name="method">MethodDefinition that may have its ReturnType, ParameterTypes, and VariableTypes updated.</param>
+    /// <param name="src">The original type which might be replaced.</param>
+    /// <param name="dest">The new type which might replace the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
     {
@@ -458,12 +458,12 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Updates the type of each item in the collection to the destination type when merging classes.
+    /// Updates the type of each item in the collection, if they are the source type, to the destination type.
     /// </summary>
     /// <typeparam name="T">The type of the objects within the collection.</typeparam>
-    /// <param name="collection">The collection of items that need their type updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <param name="collection">The collection of items that may have their type updated.</param>
+    /// <param name="src">The original type which might be replaced.</param>
+    /// <param name="dest">The new type which might replace the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     /// <exception cref="RuntimeBinderException">Thrown when the type T does not have a Clone method.</exception>
     public static void UpdateTypes<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
