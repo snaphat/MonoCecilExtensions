@@ -14,6 +14,15 @@ using MethodBody = Mono.Cecil.Cil.MethodBody;
 /// </summary>
 public static class MonoCecilExtensions
 {
+    private static readonly Collection<FieldDefinition> _updatedFields = new();
+    private static readonly Collection<PropertyDefinition> _updatedProperties = new();
+    private static readonly Collection<MethodDefinition> _updatedMethods = new();
+
+    private static readonly Collection<TypeDefinition> _srcTypes = new();
+    private static readonly Collection<TypeDefinition> _destTypes = new();
+
+    public static readonly Collection<string> additionalSearchDirectories = new();
+
     #region Base // Basic extension methods for loading assemblies, Adding elements to collections, and Finding types, fields, and methods in Mono.Cecil objects
 
     /// <summary>
@@ -36,6 +45,8 @@ public static class MonoCecilExtensions
         var resolver = new DefaultAssemblyResolver();
 
         // Add search directories to the resolver.
+        foreach(var directory in additionalSearchDirectories)
+            resolver.AddSearchDirectory(directory);
         resolver.AddSearchDirectory(Path.GetDirectoryName(typeof(int).Assembly.Location));
         resolver.AddSearchDirectory(Path.Combine(Path.GetDirectoryName(typeof(int).Assembly.Location), "Facades"));
 
@@ -342,35 +353,7 @@ public static class MonoCecilExtensions
 
     #endregion Clone // Extension methods for cloning various Mono.Cecil objects
 
-    #region UpdateReferences // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
-
-    // The following UpdateType extension methods replace references to a source type (src)
-    // with references to a destination type (dest) within different Mono.Cecil objects.
-    // These methods are used to merge a class of type src into a class of type dest.
-
-    /// <summary>
-    /// Updates the constructor of the CustomAttribute to the destination module when merging classes.
-    /// </summary>
-    /// <param name="attribute">CustomAttribute that needs its constructor updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <returns>Does not return a value.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateReferences(this CustomAttribute attribute, TypeDefinition src, TypeDefinition dest)
-    {
-        // Check that attribute isn't null
-        if (attribute == null) throw new ArgumentNullException(nameof(attribute), "The parameter attribute cannot be null.");
-        // Check that src isn't null
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        // Check that dest isn't null
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // Suppress unused parameter warning - parameter is needed to match other interfaces
-        _ = src;
-
-        // Update Constructor method type reference to destination module
-        attribute.Constructor = dest.Module.ImportReference(attribute.Constructor);
-    }
+    #region UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
 
     /// <summary>
     /// Updates the CustomAttributes and FieldType of the FieldDefinition to the destination type when merging classes.
@@ -379,7 +362,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateReferences(this FieldDefinition field, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateTypes(this FieldDefinition field, TypeDefinition src, TypeDefinition dest)
     {
         // Check that field isn't null
         if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
@@ -387,15 +370,8 @@ public static class MonoCecilExtensions
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // Update custom attributes to destination type
-        field.CustomAttributes.UpdateReferences(src, dest);
-
         // If the current field type is the source type, update it to destination type
         if (field.FieldType == src) field.FieldType = dest;
-
-        // Update field type reference to destination module
-        field.FieldType = dest.Module.ImportReference(field.FieldType);
     }
 
     /// <summary>
@@ -405,7 +381,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateReferences(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateTypes(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
     {
         // Check that property isn't null
         if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
@@ -413,15 +389,8 @@ public static class MonoCecilExtensions
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // Update custom attributes to destination type
-        property.CustomAttributes.UpdateReferences(src, dest);
-
         // If the current property type is the source type, update it to destination type
         if (property.PropertyType == src) property.PropertyType = dest;
-
-        // Update property type reference to destination module
-        property.PropertyType = dest.Module.ImportReference(property.PropertyType);
     }
 
     /// <summary>
@@ -431,7 +400,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateReferences(this ParameterDefinition parameter, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateTypes(this ParameterDefinition parameter, TypeDefinition src, TypeDefinition dest)
     {
         // Check that parameter isn't null
         if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter parameter cannot be null.");
@@ -439,12 +408,8 @@ public static class MonoCecilExtensions
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // If the current parameter type is the source type, update it to destination type
         if (parameter.ParameterType == src) parameter.ParameterType = dest;
-
-        // Update parameter type reference to destination module
-        parameter.ParameterType = dest.Module.ImportReference(parameter.ParameterType);
     }
 
     /// <summary>
@@ -454,7 +419,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateReferences(this VariableDefinition variable, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateTypes(this VariableDefinition variable, TypeDefinition src, TypeDefinition dest)
     {
         // Check that variable isn't null
         if (variable == null) throw new ArgumentNullException(nameof(variable), "The parameter variable cannot be null.");
@@ -462,12 +427,8 @@ public static class MonoCecilExtensions
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // If the current variable type is the source type, update it to destination type
         if (variable.VariableType == src) variable.VariableType = dest;
-
-        // Update variable type reference to destination module
-        variable.VariableType = dest.Module.ImportReference(variable.VariableType);
     }
 
     /// <summary>
@@ -477,7 +438,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateReferences(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
     {
         // Check that method isn't null
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
@@ -486,20 +447,14 @@ public static class MonoCecilExtensions
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
-        // Update custom attributes to destination type
-        method.CustomAttributes.UpdateReferences(src, dest);
-
         // Update method parameters to destination type
-        method.Parameters.UpdateReferences(src, dest);
+        method.Parameters.UpdateTypes(src, dest);
 
         // If the current return type is the source type, update it to destination type
         if (method.ReturnType == src) method.ReturnType = dest;
 
-        // Update return type reference to destination module
-        method.ReturnType = dest.Module.ImportReference(method.ReturnType);
-
         // Update variables in the method body (if exists) to destination type
-        method.Body?.Variables.UpdateReferences(src, dest);
+        method.Body?.Variables.UpdateTypes(src, dest);
     }
 
     /// <summary>
@@ -511,7 +466,7 @@ public static class MonoCecilExtensions
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     /// <exception cref="RuntimeBinderException">Thrown when the type T does not have a Clone method.</exception>
-    public static void UpdateReferences<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateTypes<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
     {
         // Check that collection isn't null
         if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
@@ -525,13 +480,13 @@ public static class MonoCecilExtensions
         {
             // Cast the item to dynamic to resolve the correct UpdateType method at runtime
             // And then call UpdateType for that item
-            UpdateReferences(item as dynamic, src, dest);
+            UpdateTypes(item as dynamic, src, dest);
         }
     }
 
-    #endregion UpdateReferences // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
+    #endregion UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
 
-    #region UpdateInstructionReferences // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
+    #region UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
 
     /// <summary>
     /// Updates the Operand of an instruction when merging classes.
@@ -542,7 +497,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if instruction, src, or dest are null.</exception>
-    public static void UpdateInstructionReferences(this Instruction instruction, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this Instruction instruction, TypeDefinition src, TypeDefinition dest)
     {
         // Check that instruction isn't null
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
@@ -552,18 +507,18 @@ public static class MonoCecilExtensions
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
         // Depending on the type of operand, update it accordingly
-        if (instruction.Operand is ParameterDefinition param)
-            param.UpdateReferences(src, dest);
+        if (instruction.Operand is ParameterDefinition parameter)
+            parameter.UpdateTypes(src, dest);
         else if (instruction.Operand is VariableDefinition variable)
-            variable.UpdateReferences(src, dest);
+            variable.UpdateTypes(src, dest);
         else if (instruction.Operand is TypeReference type)
-            instruction.UpdateInstructionReferences(type, src, dest);
+            instruction.UpdateInstructionTypes(type, src, dest);
         else if (instruction.Operand is FieldReference field)
-            instruction.UpdateInstructionReferences(field, src, dest);
+            instruction.UpdateInstructionTypes(field, src, dest);
         else if (instruction.Operand is MethodReference method)
-            instruction.UpdateInstructionReferences(method, src, dest);
+            instruction.UpdateInstructionTypes(method, src, dest);
         else if (instruction.Operand is CallSite callSite)
-            callSite.UpdateInstructionReferences(src, dest);
+            callSite.UpdateInstructionTypes(src, dest);
     }
 
     /// <summary>
@@ -576,7 +531,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if instruction, type, src, or dest are null.</exception>
-    public static void UpdateInstructionReferences(this Instruction instruction, TypeReference type, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this Instruction instruction, TypeReference type, TypeDefinition src, TypeDefinition dest)
     {
         // Check that instruction isn't null
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
@@ -589,7 +544,7 @@ public static class MonoCecilExtensions
 
         // If the type is the source, update it to the destination. 
         // Otherwise, import the reference from the destination module and update the operand to that.
-        instruction.Operand = type == src ? dest : dest.Module.ImportReference(type);
+        if (type == src) instruction.Operand = dest;
     }
 
     /// <summary>
@@ -603,7 +558,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if instruction, field, src, or dest are null.</exception>
-    public static void UpdateInstructionReferences(this Instruction instruction, FieldReference field, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this Instruction instruction, FieldReference field, TypeDefinition src, TypeDefinition dest)
     {
         // Check that instruction isn't null
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
@@ -625,12 +580,6 @@ public static class MonoCecilExtensions
             // If a matching field is found, update the instruction's operand to this field
             instruction.Operand = fieldDefinition;
         }
-        else
-        {
-            // If no matching field is found, import the FieldType and DeclaringType references from the destination module
-            field.FieldType = dest.Module.ImportReference(field.FieldType);
-            field.DeclaringType = dest.Module.ImportReference(field.DeclaringType);
-        }
     }
 
     /// <summary>
@@ -644,7 +593,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if instruction, method, src, or dest are null.</exception>
-    public static void UpdateInstructionReferences(this Instruction instruction, MethodReference method, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this Instruction instruction, MethodReference method, TypeDefinition src, TypeDefinition dest)
     {
         // Check that instruction isn't null
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
@@ -655,7 +604,9 @@ public static class MonoCecilExtensions
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
-        // Omitted null check for brevity
+        /////////////////////////////////////
+        method.Parameters.UpdateTypes(src, dest);
+
         // Check if the method's ReturnType or DeclaringType matches the source type, and if so, replace them with the destination type
         if (method.ReturnType == src) method.ReturnType = dest;
         if (method.DeclaringType == src) method.DeclaringType = dest;
@@ -667,12 +618,6 @@ public static class MonoCecilExtensions
             // If a matching method is found, update the instruction's operand to this method
             instruction.Operand = methodDefinition;
         }
-        else
-        {
-            // If no matching method is found, import the ReturnType and DeclaringType references from the destination module
-            method.ReturnType = dest.Module.ImportReference(method.ReturnType);
-            method.DeclaringType = dest.Module.ImportReference(method.DeclaringType);
-        }
     }
 
     /// <summary>
@@ -682,7 +627,7 @@ public static class MonoCecilExtensions
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateInstructionReferences(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
     {
         // Check that callSite isn't null
         if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
@@ -692,13 +637,10 @@ public static class MonoCecilExtensions
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
         // Update callsite parameters to destination type
-        callSite.Parameters.UpdateReferences(src, dest);
+        callSite.Parameters.UpdateTypes(src, dest);
 
         // If the current return type is the source type, update it to destination type
         if (callSite.ReturnType == src) callSite.ReturnType = dest;
-
-        // Update return type reference to destination module
-        callSite.ReturnType = dest.Module.ImportReference(callSite.ReturnType);
     }
 
     /// <summary>
@@ -707,7 +649,7 @@ public static class MonoCecilExtensions
     /// <param name="method">Method whose instructions are to be updated.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
-    public static void UpdateInstructionReferences(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
     {
         // Check that method isn't null
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
@@ -716,7 +658,7 @@ public static class MonoCecilExtensions
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
-        method.Body?.Instructions?.UpdateInstructionReferences(src, dest);
+        method.Body?.Instructions?.UpdateInstructionTypes(src, dest);
     }
 
     /// <summary>
@@ -725,7 +667,7 @@ public static class MonoCecilExtensions
     /// <param name="instructions">Collection of instructions to update.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
-    public static void UpdateInstructionReferences(this Collection<Instruction> instructions, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes(this Collection<Instruction> instructions, TypeDefinition src, TypeDefinition dest)
     {
         // Check that instructions isn't null
         if (instructions == null) throw new ArgumentNullException(nameof(instructions), "The parameter instructions cannot be null.");
@@ -735,7 +677,7 @@ public static class MonoCecilExtensions
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
         foreach (var instruction in instructions)
-            instruction.UpdateInstructionReferences(src, dest);
+            instruction.UpdateInstructionTypes(src, dest);
     }
 
     /// <summary>
@@ -747,7 +689,7 @@ public static class MonoCecilExtensions
     /// <param name="dest">The new type which is replacing the original type references.</param>
     /// <exception cref="ArgumentNullException">Thrown if collection, src, or dest are null.</exception>
     /// <exception cref="RuntimeBinderException">Thrown when the type T does not have a Clone method.</exception>
-    public static void UpdateInstructionReferences<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
+    public static void UpdateInstructionTypes<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
     {
         // Check that collection isn't null
         if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
@@ -761,11 +703,11 @@ public static class MonoCecilExtensions
         {
             // Cast the item to dynamic to resolve the correct UpdateReferences method at runtime
             // And then call UpdateReferences for that item
-            UpdateInstructionReferences(item as dynamic, src, dest);
+            UpdateInstructionTypes(item as dynamic, src, dest);
         }
     }
 
-    #endregion UpdateInstructionReferences // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
+    #endregion UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
 
     #region UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
 
@@ -800,7 +742,7 @@ public static class MonoCecilExtensions
                 // Clone the getter
                 var clonedGetter = property.GetMethod.Clone();
                 // Update all type references within the getter from src to dest
-                clonedGetter.UpdateReferences(src, dest);
+                clonedGetter.UpdateTypes(src, dest);
                 // Update the declaring type of the getter to be dest
                 clonedGetter.DeclaringType = dest;
                 // If an equivalent method exists in dest, update the property's getter to reference it
@@ -813,7 +755,7 @@ public static class MonoCecilExtensions
                 // Clone the setter
                 var clonedSetter = property.SetMethod.Clone();
                 // Update all type references within the setter from src to dest
-                clonedSetter.UpdateReferences(src, dest);
+                clonedSetter.UpdateTypes(src, dest);
                 // Update the declaring type of the setter to be dest
                 clonedSetter.DeclaringType = dest;
                 // If an equivalent method exists in dest, update the property's setter to reference it
@@ -823,24 +765,146 @@ public static class MonoCecilExtensions
         }
     }
 
+    public static void UpdateGettersAndSetters<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
+    {
+        if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
+
+        foreach (var item in collection)
+            UpdateGettersAndSetters(item as dynamic, src, dest);
+    }
+
     #endregion UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
 
-    /// <summary>
-    /// Updates the Get and Set methods of a collection of properties to the destination type when merging classes.
-    /// </summary>
-    /// <param name="properties">Collection of PropertyDefinition that needs their getters and setters updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateGettersAndSetters(this Collection<PropertyDefinition> properties, TypeDefinition src, TypeDefinition dest)
-    {
-        // Check that properties isn't null
-        if (properties == null) throw new ArgumentNullException(nameof(properties), "The parameter properties cannot be null.");
+    #region ImportReferences
 
-        // For each property in the collection, update its getter and setter
-        foreach (var property in properties)
-            property.UpdateGettersAndSetters(src, dest);
+    public static void ImportReferences(this CustomAttribute attribute, TypeDefinition dest)
+    {
+        if (attribute == null) throw new ArgumentNullException(nameof(attribute), "The parameter attribute cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        attribute.Constructor = dest.Module.ImportReference(attribute.Constructor);
     }
+
+    public static void ImportReferences(this FieldDefinition field, TypeDefinition dest)
+    {
+        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        field.CustomAttributes.ImportReferences(dest);
+
+        field.FieldType = dest.Module.ImportReference(field.FieldType);
+    }
+
+    public static void ImportReferences(this PropertyDefinition property, TypeDefinition dest)
+    {
+        if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        property.CustomAttributes.ImportReferences(dest);
+
+        property.PropertyType = dest.Module.ImportReference(property.PropertyType);
+    }
+
+    public static void ImportReferences(this ParameterDefinition parameter, TypeDefinition dest)
+    {
+        if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter parameter cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        parameter.CustomAttributes.ImportReferences(dest);
+
+        parameter.ParameterType = dest.Module.ImportReference(parameter.ParameterType);
+    }
+
+    public static void ImportReferences(this VariableDefinition variable, TypeDefinition dest)
+    {
+        if (variable == null) throw new ArgumentNullException(nameof(variable), "The parameter variable cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        variable.VariableType = dest.Module.ImportReference(variable.VariableType);
+    }
+
+    public static void ImportReferences(this MethodDefinition method, TypeDefinition dest)
+    {
+        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        method.CustomAttributes.ImportReferences(dest);
+
+        method.Parameters.ImportReferences(dest);
+
+        method.ReturnType = dest.Module.ImportReference(method.ReturnType);
+
+        method.Body?.Variables.ImportReferences(dest);
+
+        method.Body?.Instructions.ImportReferences(dest);
+    }
+
+    public static void ImportReferences(this Instruction instruction, TypeReference type, TypeDefinition dest)
+    {
+        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        instruction.Operand = dest.Module.ImportReference(type);
+    }
+
+    public static void ImportReferences(this FieldReference field, TypeDefinition dest)
+    {
+        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        field.FieldType = dest.Module.ImportReference(field.FieldType);
+        field.DeclaringType = dest.Module.ImportReference(field.DeclaringType);
+    }
+
+    public static void ImportReferences(this MethodReference method, TypeDefinition dest)
+    {
+        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        method.Parameters.ImportReferences(dest);
+        method.ReturnType = dest.Module.ImportReference(method.ReturnType);
+        method.DeclaringType = dest.Module.ImportReference(method.DeclaringType);
+    }
+
+    public static void ImportReferences(this CallSite callSite, TypeDefinition dest)
+    {
+        if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        callSite.ReturnType = dest.Module.ImportReference(callSite.ReturnType);
+    }
+
+    public static void ImportReferences(this Instruction instruction, TypeDefinition dest)
+    {
+        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        if (instruction.Operand is ParameterDefinition parameter)
+            parameter.ImportReferences(dest);
+        else if (instruction.Operand is VariableDefinition variable)
+            variable.ImportReferences(dest);
+        else if (instruction.Operand is TypeReference type)
+            instruction.ImportReferences(type, dest);
+        else if (instruction.Operand is FieldReference field)
+            field.ImportReferences(dest);
+        else if (instruction.Operand is MethodReference method)
+            method.ImportReferences(dest);
+        else if (instruction.Operand is CallSite callSite)
+            callSite.ImportReferences(dest);
+    }
+
+    public static void ImportReferences<T>(this Collection<T> collection, TypeDefinition dest)
+    {
+        if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        foreach (var item in collection)
+        {
+            ImportReferences(item as dynamic, dest);
+        }
+    }
+
+    #endregion ImportReferences
 
     public static void SwapMethodReferences(this Instruction instruction, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
@@ -909,7 +973,7 @@ public static class MonoCecilExtensions
     /// <param name="dest">The destination type definition where fields, properties, and methods from source will be added.</param>
     /// <param name="src">The source type definition whose fields, properties, and methods will be cloned and added to the destination.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void MergeFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
+    public static void AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
     {
         // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
@@ -923,7 +987,8 @@ public static class MonoCecilExtensions
         // Clone the fields from the source type and add the updated fields to the destination type
         var clonedFields = src.Fields.Clone() ??
             throw new Exception("Cloning of Fields failed."); // Error handling for failed cloning of Fields
-        dest.Fields.Add(clonedFields);
+        foreach(var field in clonedFields)
+            dest.Fields.Insert(0, field);
 
         // Clone the properties from the source type and add the updated properties to the destination type
         var clonedProperties = src.Properties.Clone() ??
@@ -1049,13 +1114,95 @@ public static class MonoCecilExtensions
         // Add the updated methods to the destination type
         dest.Methods.Add(clonedMethods);
 
-        // Update the type of the fields, properties, and methods from source type to destination type
-        clonedFields.UpdateReferences(src, dest);
-        clonedProperties.UpdateReferences(src, dest);
-        methodsToTypeUpdate.UpdateReferences(src, dest);
+        _updatedFields.Add(clonedFields);
+        _updatedProperties.Add(clonedProperties);
+        _updatedMethods.Add(methodsToTypeUpdate);
 
-        clonedProperties.UpdateGettersAndSetters(src, dest);
-        methodsToTypeUpdate.UpdateInstructionReferences(src, dest);
+        _srcTypes.Add(src);
+        _destTypes.Add(dest);
+    }
+
+    private static void UpdateTypes<T>(this Collection<T> collection)
+    {
+        for (int i = 0; i < _srcTypes.Count; ++i)
+        {
+            var src = _srcTypes[i];
+            var dest = _destTypes[i];
+
+            collection.UpdateTypes(src, dest);
+        }
+    }
+
+    private static void UpdateGettersAndSetters<T>(this Collection<T> collection)
+    {
+        for (int i = 0; i < _srcTypes.Count; ++i)
+        {
+            var src = _srcTypes[i];
+            var dest = _destTypes[i];
+
+            collection.UpdateGettersAndSetters(src, dest);
+        }
+    }
+
+    private static void UpdateInstructionTypes<T>(this Collection<T> collection)
+    {
+        for (int i = 0; i < _srcTypes.Count; ++i)
+        {
+            var src = _srcTypes[i];
+            var dest = _destTypes[i];
+
+            collection.UpdateInstructionTypes(src, dest);
+        }
+    }
+
+    private static void ImportReferences<T>(this Collection<T> collection)
+    {
+        for (int i = 0; i < _destTypes.Count; ++i)
+        {
+            var dest = _destTypes[i];
+
+            collection.ImportReferences(dest);
+        }
+    }
+
+    public static void UpdateFieldsPropertiesAndMethods()
+    {
+        _updatedFields.UpdateTypes();
+        _updatedProperties.UpdateTypes();
+        _updatedMethods.UpdateTypes();
+
+        _updatedProperties.UpdateGettersAndSetters();
+        _updatedMethods.UpdateInstructionTypes();
+
+        _updatedFields.ImportReferences();
+        _updatedProperties.ImportReferences();
+        _updatedMethods.ImportReferences();
+
+        _updatedFields.Clear();
+        _updatedProperties.Clear();
+        _updatedMethods.Clear();
+        _srcTypes.Clear();
+        _destTypes.Clear();
+    }
+
+    public static void SwapDuplicateMethods(this TypeDefinition type)
+    {
+        var alreadySwapped = new Collection<string>();
+        foreach (var methodLeft in type.Methods)
+        {
+            foreach (var methodRight in type.Methods)
+            {
+                if (methodLeft != methodRight && methodLeft.FullName == methodRight.FullName && !alreadySwapped.Contains(methodLeft.FullName))
+                {
+                    UnityEngine.Debug.Log("swapping: " + methodLeft.FullName);
+                    alreadySwapped.Add(methodLeft.FullName);
+                    methodLeft.SwapMethods(methodRight);
+                    methodRight.IsPrivate = true;
+                    // if (methodRight.Parameters.Count > 0)
+                    //     methodRight.Parameters[0].ParameterType = type.Module.TypeSystem.Object;
+                }
+            }
+        }
     }
 }
 #endif
