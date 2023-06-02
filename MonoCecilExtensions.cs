@@ -1143,7 +1143,7 @@ public static class MonoCecilExtensions
         if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
         if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
 
-        // Store attributes of the left method
+        // Save the left method's original details
         var leftBody = leftMethod.Body;
         var leftAttributes = leftMethod.Attributes;
         var leftImplAttributes = leftMethod.ImplAttributes;
@@ -1152,7 +1152,7 @@ public static class MonoCecilExtensions
         var leftCustomAttributes = new Collection<CustomAttribute>(leftMethod.CustomAttributes);
         var leftGenericParameters = new Collection<GenericParameter>(leftMethod.GenericParameters);
 
-        // Swap method bodies
+        // Swap the details from the right method to the left
         leftMethod.Body = rightMethod.Body;
         leftMethod.Body = rightMethod.Body;
         leftMethod.Attributes = rightMethod.Attributes;
@@ -1165,7 +1165,7 @@ public static class MonoCecilExtensions
         leftMethod.GenericParameters.Clear();
         leftMethod.GenericParameters.Add(rightMethod.GenericParameters);
 
-        // Swap other method attributes
+        // Swap the details from the left method (which were saved) to the right
         rightMethod.Body = leftBody;
         rightMethod.Body = leftBody;
         rightMethod.Attributes = leftAttributes;
@@ -1193,19 +1193,26 @@ public static class MonoCecilExtensions
         // Check that this type isn't null
         if (type == null) throw new ArgumentNullException(nameof(type), "The parameter type cannot be null.");
 
-        // Initialize a collection to store the names of already swapped methods
-        var alreadySwapped = new Collection<string>();
-        foreach (var methodLeft in type.Methods)
-        {
-            foreach (var methodRight in type.Methods)
-            {
-                // If two methods are not the same and they have the same full name, and this name hasn't been already swapped
-                if (methodLeft != methodRight && methodLeft.FullName == methodRight.FullName && !alreadySwapped.Contains(methodLeft.FullName))
-                {
-                    // Add this name to the list of already swapped names and swap the two methods
-                    alreadySwapped.Add(methodLeft.FullName);
+        // This HashSet is used for tracking the methods that have already been swapped.
+        var alreadySwapped = new HashSet<string>();
 
-                    // Swap the methods
+        // Convert the method collection to list for efficient index-based access.
+        var methods = type.Methods.ToList();
+
+        // Iterate over each pair of methods in the type
+        for (int i = 0; i < methods.Count; i++)
+        {
+            for (int j = i + 1; j < methods.Count; j++)
+            {
+                var methodLeft = methods[i];
+                var methodRight = methods[j];
+
+                // If two methods have the same full name and haven't been swapped yet
+                if (methodLeft.FullName == methodRight.FullName && !alreadySwapped.Contains(methodLeft.FullName))
+                {
+                    // Add the method full name to the set of already swapped methods
+                    _ = alreadySwapped.Add(methodLeft.FullName);
+                    // Swap the two methods
                     methodLeft.SwapMethods(methodRight);
                 }
             }
