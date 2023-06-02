@@ -129,13 +129,23 @@ public static class MonoCecilExtensions
     /// <returns>The MethodDefinition object of the found method. Null if not found.</returns>
     public static MethodDefinition FindMethod(this TypeDefinition type, string methodSignature)
     {
-        // Return the first method that matches the provided method signature.
+        // The function checks each method in the type's Methods collection,
+        // and returns the first method whose full name or simple name matches the provided method signature.
         return type.Methods.FirstOrDefault(m => m.FullName == methodSignature || m.Name == methodSignature);
     }
 
+    /// <summary>
+    /// This extension method finds all methods in a type that match a given method signature.
+    /// </summary>
+    /// <param name="type">The type where the methods are located.</param>
+    /// <param name="methodSignature">The full or simple name of the methods.</param>
+    /// <returns>A collection of MethodDefinition objects for the found methods. Empty collection if none found.</returns>
     public static Collection<MethodDefinition> FindMethods(this TypeDefinition type, string methodSignature)
     {
         var collection = new Collection<MethodDefinition>();
+
+        // This function checks each method in the type's Methods collection, 
+        // and adds those methods to the collection whose full name or simple name matches the provided method signature.
         foreach (var item in type.Methods.Where(m => m.FullName == methodSignature || m.Name == methodSignature))
             collection.Add(item);
         return collection;
@@ -374,7 +384,7 @@ public static class MonoCecilExtensions
 
     // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil objects.
     // This is used to ensure that copied fields, properties, and methods reference copied types instead of the originals.
-    #region UpdateTypes
+    #region UpdateTypes 
 
     /// <summary>
     /// Updates the FieldType of the given FieldDefinition, if it matches the source type, to the destination type.
@@ -518,7 +528,7 @@ public static class MonoCecilExtensions
 
     // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects.
     // This is crucial for ensuring that the instructions within methods correctly reference the fields, properties, and methods of the destination type after cloning from the source type.
-    #region UpdateInstructionTypes
+    #region UpdateInstructionTypes 
 
     /// <summary>
     /// Updates the Operand of an instruction when merging classes.
