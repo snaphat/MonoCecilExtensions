@@ -29,7 +29,8 @@ public static class MonoCecilExtensions
 
     public static readonly Collection<string> additionalSearchDirectories = new();
 
-    #region Base // Basic extension methods for loading assemblies, Adding elements to collections, and Finding types, fields, and methods in Mono.Cecil objects
+    // Basic extension methods for loading assemblies, adding elements to collections, and finding types, fields, and methods in Mono.Cecil objects.
+    #region Base
 
     /// <summary>
     /// This extension method loads an assembly from a given location.
@@ -159,9 +160,10 @@ public static class MonoCecilExtensions
             collection.Add(otherT);
     }
 
-    #endregion Base // Basic extension methods for loading assemblies, Adding elements to collections, and Finding types, fields, and methods in Mono.Cecil objects
+    #endregion Base
 
-    #region Clone // Extension methods for cloning various Mono.Cecil objects
+    // Extension methods for cloning various Mono.Cecil objects.
+    #region Clone
 
     /// <summary>
     /// Clones a CustomAttribute.
@@ -368,9 +370,11 @@ public static class MonoCecilExtensions
         return clonedCollection;
     }
 
-    #endregion Clone // Extension methods for cloning various Mono.Cecil objects
+    #endregion Clone
 
-    #region UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
+    // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil objects.
+    // This is used to ensure that copied fields, properties, and methods reference copied types instead of the originals.
+    #region UpdateTypes
 
     /// <summary>
     /// Updates the FieldType of the given FieldDefinition, if it matches the source type, to the destination type.
@@ -510,9 +514,11 @@ public static class MonoCecilExtensions
         }
     }
 
-    #endregion UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
+    #endregion UpdateTypes
 
-    #region UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
+    // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects.
+    // This is crucial for ensuring that the instructions within methods correctly reference the fields, properties, and methods of the destination type after cloning from the source type.
+    #region UpdateInstructionTypes
 
     /// <summary>
     /// Updates the Operand of an instruction when merging classes.
@@ -731,9 +737,11 @@ public static class MonoCecilExtensions
         }
     }
 
-    #endregion UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
+    #endregion UpdateInstructionTypes
 
-    #region UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
+    // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods.
+    // This ensures that the properties of the destination type reference copied getters and setters instead of the originals.
+    #region UpdateGettersAndSetters
 
     /// <summary>
     /// Updates the getter and setter methods of a property to reference the destination type when merging classes.
@@ -825,8 +833,10 @@ public static class MonoCecilExtensions
         }
     }
 
-    #endregion UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
+    #endregion UpdateGettersAndSetters
 
+    // Extension methods to import references from one module to another.
+    // This is important when merging assemblies classes as it allows the destination to access types that may not have been referenced prior.
     #region ImportReferences
 
     /// <summary>
@@ -1065,6 +1075,8 @@ public static class MonoCecilExtensions
 
     #endregion ImportReferences
 
+    // Extension methods for swapping method implementations between different types.
+    // This can be used when wanting to replace method functionality in the destination type with the corresponding functionality from the source type.
     #region SwapMethods
 
     /// <summary>
@@ -1236,6 +1248,10 @@ public static class MonoCecilExtensions
 
     #endregion SwapMethods
 
+    // Extension method that handles the addition of fields, properties, and methods from a source type to a destination type.
+    // This is a key part of merging two types, ensuring the destination type includes all necessary components from the source type.
+    #region AddFieldsPropertiesAndMethods
+
     /// <summary>
     /// Merges the source type into the destination type by cloning the fields, properties, and methods of the source, updating their types and adding them to the destination.
     /// </summary>
@@ -1244,37 +1260,33 @@ public static class MonoCecilExtensions
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
     {
-        // Check that dest isn't null
+        // Ensure that none of the arguments are null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-        // Check that src isn't null
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
+
         // Check that src's Fields, Properties, and Methods aren't null
         if (src.Fields == null || src.Properties == null || src.Methods == null) throw new ArgumentNullException(nameof(src), "Fields, Properties, or Methods of the source TypeDefinition cannot be null.");
         // Check that dest's Methods aren't null
         if (dest.Methods == null) throw new ArgumentNullException(nameof(dest), "Methods of the destination TypeDefinition cannot be null.");
 
-        // Clone the fields from the source type and add the updated fields to the destination type
-        var clonedFields = src.Fields.Clone() ??
-            throw new Exception("Cloning of Fields failed."); // Error handling for failed cloning of Fields
+        // Clone fields from the source and add to the destination
+        var clonedFields = src.Fields.Clone() ?? throw new Exception("Cloning of Fields failed.");
         foreach (var field in clonedFields)
             dest.Fields.Insert(0, field);
 
-        // Clone the properties from the source type and add the updated properties to the destination type
-        var clonedProperties = src.Properties.Clone() ??
-            throw new Exception("Cloning of Properties failed."); // Error handling for failed cloning of Properties
+        // Clone properties from the source and add to the destination
+        var clonedProperties = src.Properties.Clone() ?? throw new Exception("Cloning of Properties failed.");
         dest.Properties.Add(clonedProperties);
 
-        // Clone the methods from the source type
-        var clonedMethods = src.Methods.Clone() ??
-            throw new Exception("Cloning of Methods failed."); // Error handling for failed cloning of Methods
+        // Clone methods from the source
+        var clonedMethods = src.Methods.Clone() ?? throw new Exception("Cloning of Methods failed.");
 
-        // Used to store each method that needs its types updated
-        var methodsToTypeUpdate = new Collection<MethodDefinition>();
+        // List for keeping track of methods that need further processing
+        var methodsToUpdate = new Collection<MethodDefinition>();
 
-        // Process each cloned method
+        // Process each method
         foreach (var clonedMethod in clonedMethods.ToList())
         {
-            // Check if clonedMethod, its Body, and its Body.Instructions are not null
             if (clonedMethod == null || clonedMethod.Body == null || clonedMethod.Body.Instructions == null)
                 throw new ArgumentNullException(nameof(clonedMethod), "clonedMethod, its Body, or its Body.Instructions cannot be null.");
 
@@ -1294,17 +1306,17 @@ public static class MonoCecilExtensions
                 // and leaving the declaring type set will cause failures to add the method to the destination type
                 clonedMethod.DeclaringType = null;
 
-                // If the destination already contains a constructor or destructor, merge the instructions
+                // If destination already contains a constructor/destructor, merge the instructions
                 if (destMethod != null)
                 {
                     var clonedInstructions = clonedMethod.Body.Instructions;
                     var trimmedClonedInstructions = clonedInstructions.ToList();
 
-                    // Special handling for constructors
+                    // For constructors
                     if (clonedMethod.Name is ".ctor")
                     {
-                        // Find the constructor call instruction and remove the instructions before it.
-                        // This is done to prevent calling the base class constructor twice when merging.
+                        // Find the constructor call instruction and remove the instructions before it
+                        // This is done to prevent calling the base class constructor twice when merging
                         var callIndex = trimmedClonedInstructions.FindIndex(x => x.OpCode == OpCodes.Call);
 
                         // Check if callIndex is within valid range
@@ -1313,7 +1325,6 @@ public static class MonoCecilExtensions
 
                         // Remove starting instructions
                         trimmedClonedInstructions.RemoveRange(0, callIndex + 1);
-                        // Remove the last instruction (ret)
                         trimmedClonedInstructions.RemoveAt(trimmedClonedInstructions.Count - 1);
 
                         // Insert the trimmed instructions to the existing constructor, just before the last instruction (ret)
@@ -1324,7 +1335,7 @@ public static class MonoCecilExtensions
                             insertIndex++;
                         }
                     }
-                    // Special handling for static constructors
+                    // For static constructors
                     else if (clonedMethod.Name is ".cctor")
                     {
                         // Remove the last instruction (ret)
@@ -1338,7 +1349,7 @@ public static class MonoCecilExtensions
                             insertIndex++;
                         }
                     }
-                    // Special handling for destructors
+                    // For destructors
                     else if (clonedMethod.Name is "Finalize")
                     {
                         // Find the leave.s instruction and remove the instructions after it.
@@ -1364,57 +1375,82 @@ public static class MonoCecilExtensions
                     // Remove the cloned constructor or destructor from the list of methods to add to the destination type
                     _ = clonedMethods.Remove(clonedMethod);
 
-                    // Add the method to the list of methods to update
-                    methodsToTypeUpdate.Add(destMethod);
+                    // Add the method to the list of methods to update since it has been modified
+                    methodsToUpdate.Add(destMethod);
                 }
                 else
                 {
-                    // Add new constructor to desitnation type directly
-                    methodsToTypeUpdate.Add(clonedMethod);
+                    // Add the cloned constructor to the destination type
+                    methodsToUpdate.Add(clonedMethod);
                 }
             }
             else
             {
-                // For non-constructor and non-destructor methods, add them directly to methodsToTypeUpdate list
-                methodsToTypeUpdate.Add(clonedMethod);
+                // For non-constructor/non-destructor methods
+                methodsToUpdate.Add(clonedMethod);
             }
         }
 
-        // Add the updated methods to the destination type
+        // Add updated methods to the destination type
         dest.Methods.Add(clonedMethods);
 
+        // Add updated fields, properties and methods to the update info
         if (!assemblyUpdateInfo.TryGetValue(dest.Module.Assembly, out var updateInfo))
-        {
             updateInfo = assemblyUpdateInfo[dest.Module.Assembly] = new();
-        }
-
         updateInfo.updatedFields.Add(clonedFields);
         updateInfo.updatedProperties.Add(clonedProperties);
-        updateInfo.updatedMethods.Add(methodsToTypeUpdate);
+        updateInfo.updatedMethods.Add(methodsToUpdate);
 
+        // Add source and destination types to the update info
         updateInfo.srcTypes.Add(src);
         updateInfo.destTypes.Add(dest);
     }
 
+    #endregion AddFieldsPropertiesAndMethods
+
+    // Extension methods that handle the updating of fields, properties, and methods within a destination type after they have been cloned from a source type.
+    // These methods ensure that the newly added components in the destination type correctly reference the destination type, rather than the original source type.
+    #region UpdateFieldsPropertiesAndMethods
+
+    /// <summary>
+    /// Updates the fields, properties, and methods within a given assembly.
+    /// This includes updating the types, getters and setters, and instruction types, as well as importing references and swapping duplicate methods.
+    /// </summary>
+    /// <param name="assembly">The assembly to be updated.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly)
     {
+        // Check that this assembly isn't null
+        if (assembly == null) throw new ArgumentNullException(nameof(assembly), "The parameter assembly cannot be null.");
+
+        // Check if update information exists for the assembly
         if (assemblyUpdateInfo.TryGetValue(assembly, out var updateInfo))
         {
+            // Update types in fields, properties, and methods
             updateInfo.updatedFields.UpdateTypes(updateInfo.srcTypes, updateInfo.destTypes);
             updateInfo.updatedProperties.UpdateTypes(updateInfo.srcTypes, updateInfo.destTypes);
             updateInfo.updatedMethods.UpdateTypes(updateInfo.srcTypes, updateInfo.destTypes);
 
+            // Update getter and setter methods for properties
             updateInfo.updatedProperties.UpdateGettersAndSetters(updateInfo.srcTypes, updateInfo.destTypes);
+
+            // Update instruction types for methods
             updateInfo.updatedMethods.UpdateInstructionTypes(updateInfo.srcTypes, updateInfo.destTypes);
 
+            // Import references into the fields, properties, and methods from the main module of the assembly
             updateInfo.updatedFields.ImportReferences(assembly.MainModule);
             updateInfo.updatedProperties.ImportReferences(assembly.MainModule);
             updateInfo.updatedMethods.ImportReferences(assembly.MainModule);
 
+            // Swap any duplicate methods in the destination types
             updateInfo.destTypes.SwapDuplicateMethods();
 
+            // Remove the assembly from the update information collection
             _ = assemblyUpdateInfo.Remove(assembly);
         }
     }
+
+    #endregion UpdateFieldsPropertiesAndMethods
+
 }
 #endif
