@@ -1054,6 +1054,7 @@ public static class MonoCecilExtensions
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences<T>(this Collection<T> collection, ModuleDefinition module)
     {
+        // Ensure that none of the arguments are null
         if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
@@ -1064,31 +1065,85 @@ public static class MonoCecilExtensions
 
     #endregion ImportReferences
 
+    #region SwapMethods
+
+    /// <summary>
+    /// Swaps the method references within the provided instruction between two given methods.
+    /// </summary>
+    /// <param name="instruction">The instruction to modify.</param>
+    /// <param name="leftMethod">The first method to swap.</param>
+    /// <param name="rightMethod">The second method to swap.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethodReferences(this Instruction instruction, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
+        // Ensure that none of the arguments are null
+        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
+        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
+        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
+
+        // If the instruction's operand is a method reference
         if (instruction.Operand is MethodReference method)
         {
+            // If the operand matches the left method, replace it with the right method
             if (method == leftMethod)
                 instruction.Operand = rightMethod;
+            // If the operand matches the right method, replace it with the left method
             else if (method == rightMethod)
                 instruction.Operand = leftMethod;
         }
     }
 
+    /// <summary>
+    /// Swaps the method references within the provided collection of instructions between two given methods.
+    /// </summary>
+    /// <param name="instructions">The collection of instructions to modify.</param>
+    /// <param name="leftMethod">The first method to swap.</param>
+    /// <param name="rightMethod">The second method to swap.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethodReferences(this Collection<Instruction> instructions, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
+        // Ensure that none of the arguments are null
+        if (instructions == null) throw new ArgumentNullException(nameof(instructions), "The parameter instructions cannot be null.");
+        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
+        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
+
+        // Swap method references for each instruction in the collection
         foreach (var instruction in instructions)
             instruction.SwapMethodReferences(leftMethod, rightMethod);
     }
 
+    /// <summary>
+    /// Swaps the method references within the body of the provided method between two given methods.
+    /// </summary>
+    /// <param name="method">The method to modify.</param>
+    /// <param name="leftMethod">The first method to swap.</param>
+    /// <param name="rightMethod">The second method to swap.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethodReferences(this MethodDefinition method, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
+        // Ensure that none of the arguments are null
+        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
+        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
+        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
+
+        // Swap method references for each instruction in the method's body
         if (method.Body?.Instructions != null)
             method.Body.Instructions.SwapMethodReferences(leftMethod, rightMethod);
     }
 
+    /// <summary>
+    /// Swaps the attributes, parameters, custom attributes, and generic parameters between two given methods.
+    /// </summary>
+    /// <param name="leftMethod">The first method to swap.</param>
+    /// <param name="rightMethod">The second method to swap.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethods(this MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
+        // Ensure that none of the arguments are null
+        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
+        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
+
+        // Store attributes of the left method
         var leftBody = leftMethod.Body;
         var leftAttributes = leftMethod.Attributes;
         var leftImplAttributes = leftMethod.ImplAttributes;
@@ -1097,6 +1152,7 @@ public static class MonoCecilExtensions
         var leftCustomAttributes = new Collection<CustomAttribute>(leftMethod.CustomAttributes);
         var leftGenericParameters = new Collection<GenericParameter>(leftMethod.GenericParameters);
 
+        // Swap method bodies
         leftMethod.Body = rightMethod.Body;
         leftMethod.Body = rightMethod.Body;
         leftMethod.Attributes = rightMethod.Attributes;
@@ -1109,6 +1165,7 @@ public static class MonoCecilExtensions
         leftMethod.GenericParameters.Clear();
         leftMethod.GenericParameters.Add(rightMethod.GenericParameters);
 
+        // Swap other method attributes
         rightMethod.Body = leftBody;
         rightMethod.Body = leftBody;
         rightMethod.Attributes = leftAttributes;
@@ -1121,9 +1178,56 @@ public static class MonoCecilExtensions
         rightMethod.GenericParameters.Clear();
         rightMethod.GenericParameters.Add(leftGenericParameters);
 
+        // Swap method references within each method body
         leftMethod.SwapMethodReferences(leftMethod, rightMethod);
         rightMethod.SwapMethodReferences(leftMethod, rightMethod);
     }
+
+    /// <summary>
+    /// Finds and swaps methods with the same full name within the given type.
+    /// </summary>
+    /// <param name="type">The type to modify.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static void SwapDuplicateMethods(this TypeDefinition type)
+    {
+        // Check that this type isn't null
+        if (type == null) throw new ArgumentNullException(nameof(type), "The parameter type cannot be null.");
+
+        // Initialize a collection to store the names of already swapped methods
+        var alreadySwapped = new Collection<string>();
+        foreach (var methodLeft in type.Methods)
+        {
+            foreach (var methodRight in type.Methods)
+            {
+                // If two methods are not the same and they have the same full name, and this name hasn't been already swapped
+                if (methodLeft != methodRight && methodLeft.FullName == methodRight.FullName && !alreadySwapped.Contains(methodLeft.FullName))
+                {
+                    // Add this name to the list of already swapped names and swap the two methods
+                    alreadySwapped.Add(methodLeft.FullName);
+
+                    // Swap the methods
+                    methodLeft.SwapMethods(methodRight);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds and swaps methods with the same full name within each type in the given collection.
+    /// </summary>
+    /// <param name="types">The collection of types to modify.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static void SwapDuplicateMethods(this Collection<TypeDefinition> types)
+    {
+        // Check that this types isn't null
+        if (types == null) throw new ArgumentNullException(nameof(types), "The parameter types cannot be null.");
+
+        // Swap duplicate methods for each type in the collection
+        foreach (var type in types)
+            type.SwapDuplicateMethods();
+    }
+
+    #endregion SwapMethods
 
     /// <summary>
     /// Merges the source type into the destination type by cloning the fields, properties, and methods of the source, updating their types and adding them to the destination.
@@ -1304,32 +1408,6 @@ public static class MonoCecilExtensions
 
             _ = assemblyUpdateInfo.Remove(assembly);
         }
-    }
-
-    public static void SwapDuplicateMethods(this TypeDefinition type)
-    {
-        var alreadySwapped = new Collection<string>();
-        foreach (var methodLeft in type.Methods)
-        {
-            foreach (var methodRight in type.Methods)
-            {
-                if (methodLeft != methodRight && methodLeft.FullName == methodRight.FullName && !alreadySwapped.Contains(methodLeft.FullName))
-                {
-                    UnityEngine.Debug.Log("swapping: " + methodLeft.FullName);
-                    alreadySwapped.Add(methodLeft.FullName);
-                    methodLeft.SwapMethods(methodRight);
-                    methodRight.IsPrivate = true;
-                    // if (methodRight.Parameters.Count > 0)
-                    //     methodRight.Parameters[0].ParameterType = type.Module.TypeSystem.Object;
-                }
-            }
-        }
-    }
-
-    public static void SwapDuplicateMethods(this Collection<TypeDefinition> types)
-    {
-        foreach (var type in types)
-            type.SwapDuplicateMethods();
     }
 }
 #endif
