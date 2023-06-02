@@ -471,6 +471,25 @@ public static class MonoCecilExtensions
             UpdateTypes(item as dynamic, src, dest); // Cast the item to dynamic to resolve the appropriate UpdateTypes method at runtime
     }
 
+    /// <summary>
+    /// Updates the types within the given collection. This operation occurs for each pair of source and destination types.
+    /// </summary>
+    /// <typeparam name="T">The type of items contained within the collection.</typeparam>
+    /// <param name="collection">The collection whose types need to be updated.</param>
+    private static void UpdateTypes<T>(this Collection<T> collection)
+    {
+        // Loop over each source-destination type pair
+        for (int i = 0; i < _srcTypes.Count; ++i)
+        {
+            // Extract source and destination types
+            var src = _srcTypes[i];
+            var dest = _destTypes[i];
+
+            // Update types within the collection
+            collection.UpdateTypes(src, dest);
+        }
+    }
+
     #endregion UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
 
     #region UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
@@ -671,6 +690,25 @@ public static class MonoCecilExtensions
             UpdateInstructionTypes(item as dynamic, src, dest); // Use dynamic dispatch to find a suitable UpdateInstructionTypes method at runtime
     }
 
+    /// <summary>
+    /// Updates the instruction types within the given collection. This operation occurs for each pair of source and destination types.
+    /// </summary>
+    /// <typeparam name="T">The type of instructions contained within the collection.</typeparam>
+    /// <param name="collection">The collection whose instruction types need to be updated.</param>
+    private static void UpdateInstructionTypes<T>(this Collection<T> collection)
+    {
+        // Loop over each source-destination type pair
+        for (int i = 0; i < _srcTypes.Count; ++i)
+        {
+            // Extract source and destination types
+            var src = _srcTypes[i];
+            var dest = _destTypes[i];
+
+            // Update instruction types within the collection
+            collection.UpdateInstructionTypes(src, dest);
+        }
+    }
+
     #endregion UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
 
     #region UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
@@ -743,6 +781,24 @@ public static class MonoCecilExtensions
         // Iterates over each property in the collection, updating its getters and setters
         foreach (var property in collection)
             property.UpdateGettersAndSetters(src, dest);
+    }
+
+    /// <summary>
+    /// Updates the getter and setter methods of properties within the given collection. This operation occurs for each pair of source and destination types.
+    /// </summary>
+    /// <param name="collection">The collection of PropertyDefinition objects whose getter and setter methods need to be updated.</param>
+    private static void UpdateGettersAndSetters(this Collection<PropertyDefinition> collection)
+    {
+        // Loop over each source-destination type pair
+        for (int i = 0; i < _srcTypes.Count; ++i)
+        {
+            // Extract source and destination types
+            var src = _srcTypes[i];
+            var dest = _destTypes[i];
+
+            // Update getter and setter methods for properties within the collection
+            collection.UpdateGettersAndSetters(src, dest);
+        }
     }
 
     #endregion UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
@@ -909,7 +965,7 @@ public static class MonoCecilExtensions
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this MethodReference method, TypeDefinition dest)
     {
-                // Ensure that none of the arguments are null
+        // Ensure that none of the arguments are null
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
@@ -980,6 +1036,24 @@ public static class MonoCecilExtensions
         // Iterate over each item in the collection and import its references
         foreach (var item in collection)
             ImportReferences(item as dynamic, dest);
+    }
+
+    /// <summary>
+    /// Imports references from the types in the given collection into the destination type module. This operation occurs for each destination type.
+    /// </summary>
+    /// <typeparam name="T">The type of items contained within the collection.</typeparam>
+    /// <param name="collection">The collection whose type references need to be imported.</param>
+    private static void ImportReferences<T>(this Collection<T> collection)
+    {
+        // Loop over each destination type
+        for (int i = 0; i < _destTypes.Count; ++i)
+        {
+            // Extract destination type
+            var dest = _destTypes[i];
+
+            // Import references from the collection into the destination type module
+            collection.ImportReferences(dest);
+        }
     }
 
     #endregion ImportReferences
@@ -1200,48 +1274,6 @@ public static class MonoCecilExtensions
         _destTypes.Add(dest);
     }
 
-    private static void UpdateTypes<T>(this Collection<T> collection)
-    {
-        for (int i = 0; i < _srcTypes.Count; ++i)
-        {
-            var src = _srcTypes[i];
-            var dest = _destTypes[i];
-
-            collection.UpdateTypes(src, dest);
-        }
-    }
-
-    private static void UpdateGettersAndSetters<T>(this Collection<T> collection)
-    {
-        for (int i = 0; i < _srcTypes.Count; ++i)
-        {
-            var src = _srcTypes[i];
-            var dest = _destTypes[i];
-
-            collection.UpdateGettersAndSetters(src, dest);
-        }
-    }
-
-    private static void UpdateInstructionTypes<T>(this Collection<T> collection)
-    {
-        for (int i = 0; i < _srcTypes.Count; ++i)
-        {
-            var src = _srcTypes[i];
-            var dest = _destTypes[i];
-
-            collection.UpdateInstructionTypes(src, dest);
-        }
-    }
-
-    private static void ImportReferences<T>(this Collection<T> collection)
-    {
-        for (int i = 0; i < _destTypes.Count; ++i)
-        {
-            var dest = _destTypes[i];
-
-            collection.ImportReferences(dest);
-        }
-    }
 
     public static void UpdateFieldsPropertiesAndMethods()
     {
