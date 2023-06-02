@@ -690,11 +690,9 @@ public static class MonoCecilExtensions
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateGettersAndSetters(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
     {
-        // Check that property isn't null
+        // Ensure that none of the arguments are null
         if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
-        // Check that src isn't null
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        // Check that dest isn't null
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
         // If the declaring type of the property is the destination type
@@ -739,6 +737,7 @@ public static class MonoCecilExtensions
     /// <exception cref="ArgumentNullException">Thrown if the collection parameter is null.</exception>
     public static void UpdateGettersAndSetters(this Collection<PropertyDefinition> collection, TypeDefinition src, TypeDefinition dest)
     {
+        // Check that this collection isn't null
         if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
 
         // Iterates over each property in the collection, updating its getters and setters
@@ -750,104 +749,208 @@ public static class MonoCecilExtensions
 
     #region ImportReferences
 
+    /// <summary>
+    /// Imports the constructor reference for a given attribute into a destination type module.
+    /// </summary>
+    /// <param name="attribute">The custom attribute whose constructor reference needs to be imported.</param>
+    /// <param name="dest">The destination type into whose module the reference should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this CustomAttribute attribute, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (attribute == null) throw new ArgumentNullException(nameof(attribute), "The parameter attribute cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the constructor reference into the destination type module
         attribute.Constructor = dest.Module.ImportReference(attribute.Constructor);
     }
-
+    /// <summary>
+    /// Imports the field type and custom attributes references of a field into a destination type module.
+    /// </summary>
+    /// <param name="field">The field whose references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this FieldDefinition field, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the custom attributes references into the destination type module
         field.CustomAttributes.ImportReferences(dest);
 
+        // Import the field type reference into the destination type module
         field.FieldType = dest.Module.ImportReference(field.FieldType);
     }
 
+    /// <summary>
+    /// Imports the property type and custom attributes references of a property into a destination type module.
+    /// </summary>
+    /// <param name="property">The property whose references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this PropertyDefinition property, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the custom attributes references into the destination type module
         property.CustomAttributes.ImportReferences(dest);
 
+        // Import the property type reference into the destination type module
         property.PropertyType = dest.Module.ImportReference(property.PropertyType);
     }
 
+    /// <summary>
+    /// Imports the parameter type and custom attributes references of a parameter into a destination type module.
+    /// </summary>
+    /// <param name="parameter">The parameter whose references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this ParameterDefinition parameter, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter parameter cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the custom attributes references into the destination type module
         parameter.CustomAttributes.ImportReferences(dest);
 
+        // Import the parameter type reference into the destination type module
         parameter.ParameterType = dest.Module.ImportReference(parameter.ParameterType);
     }
 
+    /// <summary>
+    /// Imports the variable type references of a variable into a destination type module.
+    /// </summary>
+    /// <param name="variable">The variable whose type references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this VariableDefinition variable, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (variable == null) throw new ArgumentNullException(nameof(variable), "The parameter variable cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the variable type reference into the destination type module
         variable.VariableType = dest.Module.ImportReference(variable.VariableType);
     }
-
+    /// <summary>
+    /// Imports the method type references and the custom attributes of a method into a destination type module.
+    /// </summary>
+    /// <param name="method">The method whose references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this MethodDefinition method, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the custom attributes references into the destination type module
         method.CustomAttributes.ImportReferences(dest);
+
+        // Import the parameter type references into the destination type module
         method.Parameters.ImportReferences(dest);
+
+        // Import the return type reference into the destination type module
         method.ReturnType = dest.Module.ImportReference(method.ReturnType);
+
+        // Import the variable type references in the method body into the destination type module
         method.Body?.Variables.ImportReferences(dest);
+
+        // Import the instruction type references in the method body into the destination type module
         method.Body?.Instructions.ImportReferences(dest);
     }
 
+    /// <summary>
+    /// Imports the operand type reference of a particular instruction into a destination type module.
+    /// </summary>
+    /// <param name="instruction">The instruction whose operand type reference needs to be imported.</param>
+    /// <param name="type">The operand type reference to be imported.</param>
+    /// <param name="dest">The destination type into whose module the operand type reference should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this Instruction instruction, TypeReference type, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
+        if (type == null) throw new ArgumentNullException(nameof(type), "The parameter type cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the operand type reference of the instruction into the destination type module
         instruction.Operand = dest.Module.ImportReference(type);
     }
 
+    /// <summary>
+    /// Imports the field type references of a field into a destination type module.
+    /// </summary>
+    /// <param name="field">The field whose type references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this FieldReference field, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the field type reference into the destination type module
         field.FieldType = dest.Module.ImportReference(field.FieldType);
+
+        // Import the declaring type reference of the field into the destination type module
         field.DeclaringType = dest.Module.ImportReference(field.DeclaringType);
     }
 
+    /// <summary>
+    /// Imports the method type references of a method into a destination type module.
+    /// </summary>
+    /// <param name="method">The method whose type references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this MethodReference method, TypeDefinition dest)
     {
+                // Ensure that none of the arguments are null
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the parameter type references of the method into the destination type module
         method.Parameters.ImportReferences(dest);
+
+        // Import the return type reference of the method into the destination type module
         method.ReturnType = dest.Module.ImportReference(method.ReturnType);
+
+        // Import the declaring type reference of the method into the destination type module
         method.DeclaringType = dest.Module.ImportReference(method.DeclaringType);
     }
 
+    /// <summary>
+    /// Imports the return type references of a CallSite into a destination type module.
+    /// </summary>
+    /// <param name="callSite">The CallSite whose return type references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this CallSite callSite, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the return type reference of the callSite into the destination type module
         callSite.ReturnType = dest.Module.ImportReference(callSite.ReturnType);
     }
-
+    /// <summary>
+    /// Imports the operand type references of an instruction into a destination type module.
+    /// </summary>
+    /// <param name="instruction">The instruction whose operand references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this Instruction instruction, TypeDefinition dest)
     {
+        // Ensure that none of the arguments are null
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Import the operand references of the instruction into the destination type module
         if (instruction.Operand is ParameterDefinition parameter)
             parameter.ImportReferences(dest);
         else if (instruction.Operand is VariableDefinition variable)
@@ -862,15 +965,21 @@ public static class MonoCecilExtensions
             callSite.ImportReferences(dest);
     }
 
+    /// <summary>
+    /// Imports the references of a collection into a destination type module.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the collection.</typeparam>
+    /// <param name="collection">The collection whose items' references need to be imported.</param>
+    /// <param name="dest">The destination type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences<T>(this Collection<T> collection, TypeDefinition dest)
     {
         if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
+        // Iterate over each item in the collection and import its references
         foreach (var item in collection)
-        {
             ImportReferences(item as dynamic, dest);
-        }
     }
 
     #endregion ImportReferences
