@@ -15,16 +15,41 @@ using MethodBody = Mono.Cecil.Cil.MethodBody;
 /// </summary>
 public static class MonoCecilExtensions
 {
+    /// <summary>
+    /// Represents an information container for updating Mono.Cecil definitions.
+    /// </summary>
     private class UpdateInfo
     {
+        /// <summary>
+        /// A collection of FieldDefinition objects that have been updated.
+        /// </summary>
         internal readonly Collection<FieldDefinition> updatedFields = new();
+
+        /// <summary>
+        /// A collection of PropertyDefinition objects that have been updated.
+        /// </summary>
         internal readonly Collection<PropertyDefinition> updatedProperties = new();
+
+        /// <summary>
+        /// A collection of MethodDefinition objects that have been updated.
+        /// </summary>
         internal readonly Collection<MethodDefinition> updatedMethods = new();
 
+        /// <summary>
+        /// A collection of source TypeDefinition objects that are being merged.
+        /// </summary>
         internal readonly Collection<TypeDefinition> srcTypes = new();
+
+        /// <summary>
+        /// A collection of destination TypeDefinition objects where source objects are merged into.
+        /// </summary>
         internal readonly Collection<TypeDefinition> destTypes = new();
     };
 
+    /// <summary>
+    /// A dictionary mapping from AssemblyDefinition objects to their corresponding UpdateInfo objects.
+    /// Used to keep track of the updates made to each assembly.
+    /// </summary>
     private static readonly Dictionary<AssemblyDefinition, UpdateInfo> assemblyUpdateInfo = new();
 
     public static readonly Collection<string> additionalSearchDirectories = new();
