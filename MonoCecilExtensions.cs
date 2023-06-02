@@ -355,125 +355,126 @@ public static class MonoCecilExtensions
     #region UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
 
     /// <summary>
-    /// If the FieldType of the given FieldDefinition is the source type, it updates it to the destination type.
+    /// Updates the FieldType of the given FieldDefinition, if it matches the source type, to the destination type.
     /// </summary>
     /// <param name="field">FieldDefinition that may have its FieldType updated.</param>
-    /// <param name="src">The original type which might be replaced.</param>
-    /// <param name="dest">The new type which might replace the original type.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this FieldDefinition field, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
-        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+        if (field == null) throw new ArgumentNullException(nameof(field), "Field cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
-        // If the current field type is the source type, update it to destination type
+        // If the field's type matches the source type, update it to the destination type
         if (field.FieldType == src) field.FieldType = dest;
     }
 
     /// <summary>
-    /// If the PropertyType of the given PropertyDefinition is the source type, it updates it to the destination type.
+    /// Updates the PropertyType of the given PropertyDefinition, if it matches the source type, to the destination type.
     /// </summary>
     /// <param name="property">PropertyDefinition that may have its PropertyType updated.</param>
-    /// <param name="src">The original type which might be replaced.</param>
-    /// <param name="dest">The new type which might replace the original type.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
-        if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+        if (property == null) throw new ArgumentNullException(nameof(property), "Property cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
-        // If the current property type is the source type, update it to destination type
+        // If the property's type matches the source type, update it to the destination type
         if (property.PropertyType == src) property.PropertyType = dest;
     }
 
     /// <summary>
-    /// If the ParameterType of the given ParameterDefinition is the source type, it updates it to the destination type.
+    /// Updates the ParameterType of the given ParameterDefinition, if it matches the source type, to the destination type.
     /// </summary>
     /// <param name="parameter">ParameterDefinition that may have its ParameterType updated.</param>
-    /// <param name="src">The original type which might be replaced.</param>
-    /// <param name="dest">The new type which might replace the original type.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this ParameterDefinition parameter, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
-        if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter parameter cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+        if (parameter == null) throw new ArgumentNullException(nameof(parameter), "Parameter cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
-        // If the current parameter type is the source type, update it to destination type
+        // If the parameter's type matches the source type, update it to the destination type
         if (parameter.ParameterType == src) parameter.ParameterType = dest;
     }
 
     /// <summary>
-    /// If the VariableType of the given VariableDefinition is the source type, it updates it to the destination type.
+    /// Updates the VariableType of the given VariableDefinition, if it matches the source type, to the destination type.
     /// </summary>
     /// <param name="variable">VariableDefinition that may have its VariableType updated.</param>
-    /// <param name="src">The original type which might be replaced.</param>
-    /// <param name="dest">The new type which might replace the original type.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this VariableDefinition variable, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
-        if (variable == null) throw new ArgumentNullException(nameof(variable), "The parameter variable cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+        if (variable == null) throw new ArgumentNullException(nameof(variable), "Variable cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
-        // If the current variable type is the source type, update it to destination type
+        // If the variable's type matches the source type, update it to the destination type
         if (variable.VariableType == src) variable.VariableType = dest;
     }
 
     /// <summary>
-    /// Updates ReturnType of the given MethodDefinition, and the types in its Parameters and Variables, if they are the source type, to the destination type.
+    /// Updates the ReturnType of the given MethodDefinition, if it matches the source type, to the destination type.
+    /// Also updates ParameterTypes and VariableTypes of the MethodDefinition using the same rule.
     /// </summary>
     /// <param name="method">MethodDefinition that may have its ReturnType, ParameterTypes, and VariableTypes updated.</param>
-    /// <param name="src">The original type which might be replaced.</param>
-    /// <param name="dest">The new type which might replace the original type.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
-        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+        if (method == null) throw new ArgumentNullException(nameof(method), "Method cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
-        // Update method parameters to destination type
-        method.Parameters.UpdateTypes(src, dest);
-
-        // If the current return type is the source type, update it to destination type
+        // If the method's return type matches the source type, update it to the destination type
         if (method.ReturnType == src) method.ReturnType = dest;
 
-        // Update variables in the method body to the destination type
+        // Update method parameters and variables if they match the source type
+        method.Parameters.UpdateTypes(src, dest);
         method.Body?.Variables.UpdateTypes(src, dest);
     }
 
     /// <summary>
-    /// Updates the type of each item in the collection, if they are the source type, to the destination type.
+    /// Updates the types of each item in the collection, if they match the source type, to the destination type.
+    /// The exact manner of updating depends on the dynamic type of the items in the collection.
     /// </summary>
     /// <typeparam name="T">The type of the objects within the collection.</typeparam>
     /// <param name="collection">The collection of items that may have their type updated.</param>
-    /// <param name="src">The original type which might be replaced.</param>
-    /// <param name="dest">The new type which might replace the original type.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    /// <exception cref="RuntimeBinderException">Thrown when the type T does not have a Clone method.</exception>
+    /// <exception cref="RuntimeBinderException">Thrown when the type T does not have an applicable UpdateTypes method.</exception>
     public static void UpdateTypes<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
-        if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+        if (collection == null) throw new ArgumentNullException(nameof(collection), "Collection cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
-        // Update each item's types
+        // Update each item's types, depending on its dynamic type
         foreach (var item in collection)
-            UpdateTypes(item as dynamic, src, dest); // Cast the item to dynamic to resolve the method at runtime
+            UpdateTypes(item as dynamic, src, dest); // Cast the item to dynamic to resolve the appropriate UpdateTypes method at runtime
     }
 
     #endregion UpdateTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil objects
 
     #region UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
+
     /// <summary>
     /// Updates the Operand of an instruction when merging classes.
     /// The update strategy depends on the type of the operand.
@@ -530,6 +531,7 @@ public static class MonoCecilExtensions
     /// Updates the Operand of an instruction when merging classes.
     /// Updates the FieldType and DeclaringType of a FieldReference operand if they match the source type.
     /// If a matching field is found in the destination type, the Operand is updated to this field.
+    /// If no matching field is found, the Operand remains unchanged.
     /// </summary>
     /// <param name="instruction">The instruction whose operand needs to be updated.</param>
     /// <param name="field">FieldReference that serves as a template for the updating process.</param>
@@ -560,6 +562,7 @@ public static class MonoCecilExtensions
     /// Updates the ReturnType and DeclaringType of a MethodReference operand if they match the source type.
     /// Updates the parameters of the MethodReference if they match the source type.
     /// If a matching method is found in the destination type, the Operand is updated to this method.
+    /// If no matching method is found, the Operand remains unchanged.
     /// </summary>
     /// <param name="instruction">Instruction whose MethodReference operand is to be updated.</param>
     /// <param name="method">MethodReference of the instruction that needs its parameters, return type and declaring type updated.</param>
@@ -647,14 +650,15 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Updates type references of each item in the given collection when merging classes.
+    /// Calls UpdateInstructionTypes method on each item in the collection, if available.
+    /// Uses dynamic dispatch to resolve the appropriate UpdateInstructionTypes method at runtime based on the actual type of each item.
     /// </summary>
     /// <typeparam name="T">The type of the objects within the collection.</typeparam>
-    /// <param name="collection">Collection of items whose type references are to be updated.</param>
+    /// <param name="collection">Collection of items on which UpdateInstructionTypes method is to be called.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type references.</param>
     /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    /// <exception cref="RuntimeBinderException">Thrown when the type T does not have a Clone method.</exception>
+    /// <exception cref="RuntimeBinderException">Thrown when the type T does not have a suitable UpdateInstructionTypes method.</exception>
     public static void UpdateInstructionTypes<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
     {
         // Ensure that none of the arguments are null
@@ -662,9 +666,9 @@ public static class MonoCecilExtensions
         if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
-        // Update each item's Instruction types
+        // Attempt to call UpdateInstructionTypes method on each item in the collection
         foreach (var item in collection)
-            UpdateInstructionTypes(item as dynamic, src, dest); // Cast the item to dynamic to resolve the method at runtime
+            UpdateInstructionTypes(item as dynamic, src, dest); // Use dynamic dispatch to find a suitable UpdateInstructionTypes method at runtime
     }
 
     #endregion UpdateInstructionTypes // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects
@@ -725,12 +729,21 @@ public static class MonoCecilExtensions
         }
     }
 
-    public static void UpdateGettersAndSetters<T>(this Collection<T> collection, TypeDefinition src, TypeDefinition dest)
+    /// <summary>
+    /// Iterates over a collection of PropertyDefinition items, updating their getters and setters to reference the destination type.
+    /// This method is useful when multiple properties need to be updated as part of class merging.
+    /// </summary>
+    /// <param name="collection">A collection of PropertyDefinition items whose getters and setters need to be updated.</param>
+    /// <param name="src">The original type which is being replaced.</param>
+    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the collection parameter is null.</exception>
+    public static void UpdateGettersAndSetters(this Collection<PropertyDefinition> collection, TypeDefinition src, TypeDefinition dest)
     {
         if (collection == null) throw new ArgumentNullException(nameof(collection), "The parameter collection cannot be null.");
 
-        foreach (var item in collection)
-            UpdateGettersAndSetters(item as dynamic, src, dest);
+        // Iterates over each property in the collection, updating its getters and setters
+        foreach (var property in collection)
+            property.UpdateGettersAndSetters(src, dest);
     }
 
     #endregion UpdateGettersAndSetters // Extension methods for Replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods
@@ -789,13 +802,9 @@ public static class MonoCecilExtensions
         if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
 
         method.CustomAttributes.ImportReferences(dest);
-
         method.Parameters.ImportReferences(dest);
-
         method.ReturnType = dest.Module.ImportReference(method.ReturnType);
-
         method.Body?.Variables.ImportReferences(dest);
-
         method.Body?.Instructions.ImportReferences(dest);
     }
 
