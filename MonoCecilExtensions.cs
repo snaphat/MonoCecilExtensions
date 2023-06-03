@@ -6,7 +6,6 @@ using System.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
-
 using MethodBody = Mono.Cecil.Cil.MethodBody;
 
 /// <summary>
@@ -409,7 +408,7 @@ public static class MonoCecilExtensions
 
     // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil objects.
     // This is used to ensure that copied fields, properties, and methods reference copied types instead of the originals.
-    #region UpdateTypes 
+    #region UpdateTypes
 
     /// <summary>
     /// Updates the FieldType of the given FieldDefinition, if it matches the source type, to the destination type.
@@ -875,7 +874,7 @@ public static class MonoCecilExtensions
     #region ImportReferences
 
     /// <summary>
-    /// Imports the constructor reference for a given attribute into a module type module.
+    /// Imports the constructor reference for a given attribute into a module.
     /// </summary>
     /// <param name="attribute">The custom attribute whose constructor reference needs to be imported.</param>
     /// <param name="module">The module type into whose module the reference should be imported.</param>
@@ -886,11 +885,12 @@ public static class MonoCecilExtensions
         if (attribute == null) throw new ArgumentNullException(nameof(attribute), "The parameter attribute cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the constructor reference into the module type module
+        // Import the constructor reference into the module
         attribute.Constructor = module.ImportReference(attribute.Constructor);
     }
+
     /// <summary>
-    /// Imports the field type and custom attributes references of a field into a module type module.
+    /// Imports the field type and custom attributes references of a field into a module.
     /// </summary>
     /// <param name="field">The field whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -901,15 +901,18 @@ public static class MonoCecilExtensions
         if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the custom attributes references into the module type module
+        // Import the custom attributes references into the module
         field.CustomAttributes.ImportReferences(module);
 
-        // Import the field type reference into the module type module
+        // Import the field type reference into the module
         field.FieldType = module.ImportReference(field.FieldType);
+
+        // Import the declaring type definition into the module
+        field.DeclaringType = module.ImportReference(field.DeclaringType).Resolve();
     }
 
     /// <summary>
-    /// Imports the property type and custom attributes references of a property into a module type module.
+    /// Imports the property type and custom attributes references of a property into a module.
     /// </summary>
     /// <param name="property">The property whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -920,15 +923,18 @@ public static class MonoCecilExtensions
         if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the custom attributes references into the module type module
+        // Import the custom attributes references into the module
         property.CustomAttributes.ImportReferences(module);
 
-        // Import the property type reference into the module type module
+        // Import the property type reference into the module
         property.PropertyType = module.ImportReference(property.PropertyType);
+
+        // Import the declaring type definition into the module
+        property.DeclaringType = module.ImportReference(property.DeclaringType).Resolve();
     }
 
     /// <summary>
-    /// Imports the parameter type and custom attributes references of a parameter into a module type module.
+    /// Imports the parameter type and custom attributes references of a parameter into a module.
     /// </summary>
     /// <param name="parameter">The parameter whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -939,15 +945,15 @@ public static class MonoCecilExtensions
         if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter parameter cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the custom attributes references into the module type module
+        // Import the custom attributes references into the module
         parameter.CustomAttributes.ImportReferences(module);
 
-        // Import the parameter type reference into the module type module
+        // Import the parameter type reference into the module
         parameter.ParameterType = module.ImportReference(parameter.ParameterType);
     }
 
     /// <summary>
-    /// Imports the variable type references of a variable into a module type module.
+    /// Imports the variable type references of a variable into a module.
     /// </summary>
     /// <param name="variable">The variable whose type references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -958,11 +964,11 @@ public static class MonoCecilExtensions
         if (variable == null) throw new ArgumentNullException(nameof(variable), "The parameter variable cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the variable type reference into the module type module
+        // Import the variable type reference into the module
         variable.VariableType = module.ImportReference(variable.VariableType);
     }
     /// <summary>
-    /// Imports the method type references and the custom attributes of a method into a module type module.
+    /// Imports the method type references and the custom attributes of a method into a module.
     /// </summary>
     /// <param name="method">The method whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -973,24 +979,27 @@ public static class MonoCecilExtensions
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the custom attributes references into the module type module
+        // Import the custom attributes references into the module
         method.CustomAttributes.ImportReferences(module);
 
-        // Import the parameter type references into the module type module
+        // Import the parameter type references into the module
         method.Parameters.ImportReferences(module);
 
-        // Import the return type reference into the module type module
+        // Import the return type reference into the module
         method.ReturnType = module.ImportReference(method.ReturnType);
 
-        // Import the variable type references in the method body into the module type module
+        // Import the declaring type definition into the module
+        method.DeclaringType = module.ImportReference(method.DeclaringType).Resolve();
+
+        // Import the variable type references in the method body into the module
         method.Body?.Variables.ImportReferences(module);
 
-        // Import the instruction type references in the method body into the module type module
+        // Import the instruction type references in the method body into the module
         method.Body?.Instructions.ImportReferences(module);
     }
 
     /// <summary>
-    /// Imports the operand type reference of a particular instruction into a module type module.
+    /// Imports the operand type reference of a particular instruction into a module.
     /// </summary>
     /// <param name="instruction">The instruction whose operand type reference needs to be imported.</param>
     /// <param name="type">The operand type reference to be imported.</param>
@@ -1003,12 +1012,12 @@ public static class MonoCecilExtensions
         if (type == null) throw new ArgumentNullException(nameof(type), "The parameter type cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the operand type reference of the instruction into the module type module
+        // Import the operand type reference of the instruction into the module
         instruction.Operand = module.ImportReference(type);
     }
 
     /// <summary>
-    /// Imports the field type references of a field into a module type module.
+    /// Imports the field type references of a field into a module.
     /// </summary>
     /// <param name="field">The field whose type references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -1019,15 +1028,15 @@ public static class MonoCecilExtensions
         if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the field type reference into the module type module
+        // Import the field type reference into the module
         field.FieldType = module.ImportReference(field.FieldType);
 
-        // Import the declaring type reference of the field into the module type module
+        // Import the declaring type reference of the field into the module
         field.DeclaringType = module.ImportReference(field.DeclaringType);
     }
 
     /// <summary>
-    /// Imports the method type references of a method into a module type module.
+    /// Imports the method type references of a method into a module.
     /// </summary>
     /// <param name="method">The method whose type references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -1038,18 +1047,18 @@ public static class MonoCecilExtensions
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the parameter type references of the method into the module type module
+        // Import the parameter type references of the method into the module
         method.Parameters.ImportReferences(module);
 
-        // Import the return type reference of the method into the module type module
+        // Import the return type reference of the method into the module
         method.ReturnType = module.ImportReference(method.ReturnType);
 
-        // Import the declaring type reference of the method into the module type module
+        // Import the declaring type reference of the method into the module
         method.DeclaringType = module.ImportReference(method.DeclaringType);
     }
 
     /// <summary>
-    /// Imports the return type references of a CallSite into a module type module.
+    /// Imports the return type references of a CallSite into a module.
     /// </summary>
     /// <param name="callSite">The CallSite whose return type references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -1060,11 +1069,11 @@ public static class MonoCecilExtensions
         if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the return type reference of the callSite into the module type module
+        // Import the return type reference of the callSite into the module
         callSite.ReturnType = module.ImportReference(callSite.ReturnType);
     }
     /// <summary>
-    /// Imports the operand type references of an instruction into a module type module.
+    /// Imports the operand type references of an instruction into a module.
     /// </summary>
     /// <param name="instruction">The instruction whose operand references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
@@ -1075,7 +1084,7 @@ public static class MonoCecilExtensions
         if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
 
-        // Import the operand references of the instruction into the module type module
+        // Import the operand references of the instruction into the module
         if (instruction.Operand is ParameterDefinition parameter)
             parameter.ImportReferences(module);
         else if (instruction.Operand is VariableDefinition variable)
@@ -1091,7 +1100,7 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
-    /// Imports the references of a collection into a module type module.
+    /// Imports the references of a collection into a module.
     /// </summary>
     /// <typeparam name="T">The type of the items in the collection.</typeparam>
     /// <param name="collection">The collection whose items' references need to be imported.</param>
@@ -1227,7 +1236,7 @@ public static class MonoCecilExtensions
 
         // Swap method references within each method body
         leftMethod.SwapMethodReferences(leftMethod, rightMethod);
-        rightMethod.SwapMethodReferences(leftMethod, rightMethod);
+        rightMethod.SwapMethodReferences(rightMethod, leftMethod);
     }
 
     /// <summary>
