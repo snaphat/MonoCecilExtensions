@@ -925,6 +925,10 @@ public static class MonoCecilExtensions
     /// <param name="src">The source type definition whose fields, properties, and methods will be cloned and added to the destination.</param>
     public static void AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
     {
+        // Add nested types to the module
+        foreach (var subtype in src.NestedTypes)
+            dest.Module.Assembly.AddType(subtype);
+
         // Clone attributes from the source and add to the destination
         var clonedAttributes = new Collection<CustomAttribute>();
         foreach (var attribute in src.CustomAttributes)
