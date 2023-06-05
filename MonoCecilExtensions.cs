@@ -20,6 +20,11 @@ public static class MonoCecilExtensions
     private class UpdateInfo
     {
         /// <summary>
+        /// A collection of CustomAttribute objects that have been updated.
+        /// </summary>
+        internal readonly Collection<CustomAttribute> updatedAttributes = new();
+
+        /// <summary>
         /// A collection of FieldDefinition objects that have been updated.
         /// </summary>
         internal readonly Collection<FieldDefinition> updatedFields = new();
@@ -1050,6 +1055,15 @@ public static class MonoCecilExtensions
         // Check that dest's Methods aren't null
         if (dest.Methods == null) throw new ArgumentNullException(nameof(dest), "Methods of the destination TypeDefinition cannot be null.");
 
+        // Clone attributes from the source and add to the destination
+        var clonedAttributes = new Collection<CustomAttribute>();
+        foreach (var attribute in src.CustomAttributes)
+        {
+            var clonedAttribute = attribute.Clone();
+            dest.CustomAttributes.Add(clonedAttribute);
+            clonedAttributes.Add(clonedAttribute);
+        }
+
         // Clone fields from the source and add to the destination
         var clonedFields = new Collection<FieldDefinition>();
         foreach (var field in src.Fields)
@@ -1189,9 +1203,10 @@ public static class MonoCecilExtensions
         // Add updated methods to the destination type
         foreach (var method in clonedMethods) dest.Methods.Add(method);
 
-        // Add updated fields, properties and methods to the update info
+        // Add updated attributes, fields, properties and methods to the update info
         if (!assemblyUpdateInfo.TryGetValue(dest.Module.Assembly, out var updateInfo))
             updateInfo = assemblyUpdateInfo[dest.Module.Assembly] = new();
+        foreach (var attribute in clonedAttributes) updateInfo.updatedAttributes.Add(attribute);
         foreach (var field in clonedFields) updateInfo.updatedFields.Add(field);
         foreach (var property in clonedProperties) updateInfo.updatedProperties.Add(property);
         foreach (var method in updatedMethods) updateInfo.updatedMethods.Add(method);
@@ -1237,7 +1252,8 @@ public static class MonoCecilExtensions
             for (int i = 0; i < updateInfo.destTypes.Count; ++i)
                 foreach (var method in updateInfo.updatedMethods) method.UpdateInstructionTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
 
-            // Import references for fields, properties, and methods from the main module of the assembly
+            // Import references for attributes, fields, properties, and methods from the main module of the assembly
+            foreach (var attribute in updateInfo.updatedAttributes) attribute.ImportReferences(assembly.MainModule);
             foreach (var field in updateInfo.updatedFields) field.ImportReferences(assembly.MainModule);
             foreach (var property in updateInfo.updatedProperties) property.ImportReferences(assembly.MainModule);
             foreach (var method in updateInfo.updatedMethods) method.ImportReferences(assembly.MainModule);
