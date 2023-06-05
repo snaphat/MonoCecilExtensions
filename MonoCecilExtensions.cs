@@ -893,8 +893,13 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="assembly">The assembly to which the type will be added.</param>
     /// <param name="src">The source type that will be added to the assembly.</param>
-    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src)
+    /// <param name="avoidNameConflicts">Avoid name conflicts by adding a '_' suffix to the copied class name.</param>
+    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src, bool avoidNameConflicts = false)
     {
+        // Check for name conflict avoidance
+        var srcName = src.Name;
+        if (avoidNameConflicts) src.Name += "_";
+
         // Create a new TypeDefinition with the same properties as the source type
         var dest = new TypeDefinition(src.Namespace, src.Name, src.Attributes);
 
@@ -910,6 +915,9 @@ public static class MonoCecilExtensions
 
         // Add the fields, properties, and methods from the source type to the new type
         dest.AddFieldsPropertiesAndMethods(src);
+
+        // Restore name
+        if (avoidNameConflicts) src.Name = srcName;
     }
 
     #endregion AddType
