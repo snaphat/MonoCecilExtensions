@@ -366,6 +366,9 @@ public static class MonoCecilExtensions
             SemanticsAttributes = method.SemanticsAttributes
         };
 
+        // Add all overides from the original method to the cloned method (references).
+        foreach (var @override in method.Overrides) clonedMethod.Overrides.Add(@override);
+
         // Copy all custom attributes from the original method to the cloned method.
         foreach (var attribute in method.CustomAttributes) clonedMethod.CustomAttributes.Add(attribute.Clone());
 
@@ -430,6 +433,32 @@ public static class MonoCecilExtensions
 
         // If the field's type matches the source type, update it to the destination type
         if (field.FieldType == src) field.FieldType = dest;
+    }
+
+    /// <summary>
+    /// Updates the FieldReference and DeclaringType of the given FieldReference, if they match the source type, to the destination type.
+    /// If a matching field definition is found in the destination type, a reference to it is returned.
+    /// Otherwise, the original field reference is returned.
+    /// </summary>
+    /// <param name="field">FieldReference that may have its FieldType, and DeclaringType updated.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
+    /// <returns>A FieldReference with updated types, or the original FieldReference if no updates were made.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static FieldReference UpdateTypes(this FieldReference field, TypeDefinition src, TypeDefinition dest)
+    {
+        // Ensure that none of the arguments are null
+        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        // Check if the field's FieldType or DeclaringType matches the source type, and if so, replace them with the destination type
+        if (field.FieldType == src) field.FieldType = dest;
+        if (field.DeclaringType == src) field.DeclaringType = dest;
+
+        // Attempt to find a field in the destination type that matches the field's full name
+        // If a matching definition is found, return a reference to it otherwise return original reference
+        return dest.FindField(field.FullName) ?? field;
     }
 
     /// <summary>
@@ -501,6 +530,9 @@ public static class MonoCecilExtensions
         if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
         if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
+        // Update method overrides if they match the source type
+        for (int i = 0; i < method.Overrides.Count; i++) method.Overrides[i] = method.Overrides[i].UpdateTypes(src, dest);
+
         // If the method's return type matches the source type, update it to the destination type
         if (method.ReturnType == src) method.ReturnType = dest;
 
@@ -509,11 +541,62 @@ public static class MonoCecilExtensions
         if (method.HasBody) foreach (var variable in method.Body.Variables) variable.UpdateTypes(src, dest);
     }
 
+    /// <summary>
+    /// Updates the ReturnType and DeclaringType of the given MethodReference, if they match the source type, to the destination type.
+    /// Also updates the ParameterTypes of the MethodReference using the same rule.
+    /// If a matching method definition is found in the destination type, a reference to it is returned.
+    /// Otherwise, the original method reference is returned.
+    /// </summary>
+    /// <param name="method">MethodReference that may have its ReturnType, DeclaringType and ParameterTypes updated.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
+    /// <returns>A MethodReference with updated types, or the original MethodReference if no updates were made.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static MethodReference UpdateTypes(this MethodReference method, TypeDefinition src, TypeDefinition dest)
+    {
+        // Ensure that none of the arguments are null
+        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        // Update method parameters to destination type
+        foreach (var parameter in method.Parameters) parameter.UpdateTypes(src, dest);
+
+        // Check if the method's ReturnType or DeclaringType matches the source type, and if so, replace them with the destination type
+        if (method.ReturnType == src) method.ReturnType = dest;
+        if (method.DeclaringType == src) method.DeclaringType = dest;
+
+        // Attempt to find a method in the destination type that matches the method's full name
+        // If a matching definition is found, return a reference to it otherwise return original reference
+        return dest.FindMethod(method.FullName) ?? method;
+    }
+
+    /// <summary>
+    /// Updates the ReturnType and Parameters of the CallSite to the destination type, if they match the source type, to the destination type.
+    /// </summary>
+    /// <param name="callSite">CallSite that needs its return type and parameters updated.</param>
+    /// <param name="src">The original type which is being replaced.</param>
+    /// <param name="dest">The new type which is replacing the original type.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static void UpdateTypes(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
+    {
+        // Ensure that none of the arguments are null
+        if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
+
+        // Update callsite parameters to destination type
+        foreach (var parameter in callSite.Parameters) parameter.UpdateTypes(src, dest);
+
+        // If the current return type is the source type, update it to destination type
+        if (callSite.ReturnType == src) callSite.ReturnType = dest;
+    }
+
     #endregion UpdateTypes
 
     // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil.Instruction objects.
     // This is crucial for ensuring that the instructions within methods correctly reference the fields, properties, and methods of the destination type after cloning from the source type.
-    #region UpdateInstructionTypes 
+    #region UpdateInstructionTypes
 
     /// <summary>
     /// Updates the Operand of an instruction when merging classes.
@@ -536,120 +619,14 @@ public static class MonoCecilExtensions
             parameter.UpdateTypes(src, dest);  // Update types in ParameterDefinition
         else if (instruction.Operand is VariableDefinition variable)
             variable.UpdateTypes(src, dest);  // Update types in VariableDefinition
-        else if (instruction.Operand is TypeReference type)
-            instruction.UpdateInstructionTypes(type, src, dest);  // Update types in TypeReference
+        else if (instruction.Operand is TypeReference type && type == src)
+            instruction.Operand = dest;  // Update type in TypeReference
         else if (instruction.Operand is FieldReference field)
-            instruction.UpdateInstructionTypes(field, src, dest);  // Update types in FieldReference
+            instruction.Operand = field.UpdateTypes(src, dest);  // Update types in FieldReference
         else if (instruction.Operand is MethodReference method)
-            instruction.UpdateInstructionTypes(method, src, dest);  // Update types in MethodReference
+            instruction.Operand = method.UpdateTypes(src, dest);  // Update types in MethodReference
         else if (instruction.Operand is CallSite callSite)
-            callSite.UpdateInstructionTypes(src, dest);  // Update types in CallSite
-    }
-
-    /// <summary>
-    /// Updates the Operand of an instruction when merging classes.
-    /// If the TypeReference of the operand matches the source type, it's replaced with the destination type.
-    /// </summary>
-    /// <param name="instruction">The instruction whose operand needs to be updated.</param>
-    /// <param name="type">TypeReference that serves as a template for the updating process.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateInstructionTypes(this Instruction instruction, TypeReference type, TypeDefinition src, TypeDefinition dest)
-    {
-        // Ensure that none of the arguments are null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
-        if (type == null) throw new ArgumentNullException(nameof(type), "The parameter type cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // If the operand type is the source type, update it to destination type
-        if (type == src) instruction.Operand = dest;
-    }
-
-    /// <summary>
-    /// Updates the Operand of an instruction when merging classes.
-    /// Updates the FieldType and DeclaringType of a FieldReference operand if they match the source type.
-    /// If a matching field is found in the destination type, the Operand is updated to this field.
-    /// If no matching field is found, the Operand remains unchanged.
-    /// </summary>
-    /// <param name="instruction">The instruction whose operand needs to be updated.</param>
-    /// <param name="field">FieldReference that serves as a template for the updating process.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateInstructionTypes(this Instruction instruction, FieldReference field, TypeDefinition src, TypeDefinition dest)
-    {
-        // Ensure that none of the arguments are null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
-        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // Check if the field's FieldType or DeclaringType matches the source type, and if so, replace them with the destination type
-        if (field.FieldType == src) field.FieldType = dest;
-        if (field.DeclaringType == src) field.DeclaringType = dest;
-
-        // Attempt to find a field in the destination type that matches the field's full name
-        var fieldDefinition = dest.FindField(field.FullName);
-
-        // If a matching field is found, update the instruction's operand to this field
-        if (fieldDefinition != null) instruction.Operand = fieldDefinition;
-    }
-
-    /// <summary>
-    /// Updates the Operand of an instruction when merging classes.
-    /// Updates the ReturnType and DeclaringType of a MethodReference operand if they match the source type.
-    /// Updates the parameters of the MethodReference if they match the source type.
-    /// If a matching method is found in the destination type, the Operand is updated to this method.
-    /// If no matching method is found, the Operand remains unchanged.
-    /// </summary>
-    /// <param name="instruction">Instruction whose MethodReference operand is to be updated.</param>
-    /// <param name="method">MethodReference of the instruction that needs its parameters, return type and declaring type updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateInstructionTypes(this Instruction instruction, MethodReference method, TypeDefinition src, TypeDefinition dest)
-    {
-        // Ensure that none of the arguments are null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
-        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // Update method parameters to destination type
-        foreach (var parameter in method.Parameters) parameter.UpdateTypes(src, dest);
-
-        // Check if the method's ReturnType or DeclaringType matches the source type, and if so, replace them with the destination type
-        if (method.ReturnType == src) method.ReturnType = dest;
-        if (method.DeclaringType == src) method.DeclaringType = dest;
-
-        // Attempt to find a method in the destination type that matches the method's full name
-        var methodDefinition = dest.FindMethod(method.FullName);
-
-        // If a matching method is found, update the instruction's operand to this method
-        if (methodDefinition != null) instruction.Operand = methodDefinition;
-    }
-
-    /// <summary>
-    /// Updates the ReturnType and Parameters of the CallSite to the destination type when merging classes.
-    /// </summary>
-    /// <param name="callSite">CallSite that needs its return type and parameters updated.</param>
-    /// <param name="src">The original type which is being replaced.</param>
-    /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
-    public static void UpdateInstructionTypes(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
-    {
-        // Ensure that none of the arguments are null
-        if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
-        // Update callsite parameters to destination type
-        foreach (var parameter in callSite.Parameters) parameter.UpdateTypes(src, dest);
-
-        // If the current return type is the source type, update it to destination type
-        if (callSite.ReturnType == src) callSite.ReturnType = dest;
+            callSite.UpdateTypes(src, dest);  // Update types in CallSite
     }
 
     /// <summary>
@@ -669,6 +646,7 @@ public static class MonoCecilExtensions
         // Update instructions in the method body to the destination type
         if (method.HasBody) foreach (var instruction in method.Body.Instructions) UpdateInstructionTypes(instruction, src, dest);
     }
+
     #endregion UpdateInstructionTypes
 
     // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil.Property getter and setter methods.
@@ -857,6 +835,9 @@ public static class MonoCecilExtensions
         // Ensure that none of the arguments are null
         if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
         if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
+
+        // Import method overrides into the module
+        for (int i = 0; i < method.Overrides.Count; ++i) method.Overrides[i] = module.ImportReference(method.Overrides[i]);
 
         // Import the custom attributes references into the module
         foreach (var attribute in method.CustomAttributes) attribute.ImportReferences(module);
