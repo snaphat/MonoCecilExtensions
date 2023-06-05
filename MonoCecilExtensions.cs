@@ -71,17 +71,9 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="location">The location of the assembly to be loaded.</param>
     /// <param name="readWrite">A boolean value to determine if the assembly is read-only or writable.</param>
-    /// <returns>The AssemblyDefinition object of the loaded assembly if successful, null otherwise.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the location is null or empty.</exception>
-    /// <exception cref="FileNotFoundException">Thrown when an assembly cannot be found at the provided location.</exception>
-    /// <exception cref="BadImageFormatException">Thrown when the file at the provided location is not a valid .NET assembly.</exception>
+    /// <returns>The AssemblyDefinition object of the loaded assembly if successful</returns>
     public static AssemblyDefinition LoadAssembly(this string location, bool readWrite = false)
     {
-        // Check for empty location
-        if (string.IsNullOrEmpty(location)) throw new ArgumentNullException(nameof(location), "The location of the assembly to be loaded cannot be null or empty.");
-        // Check that the target assembly exists
-        if (!File.Exists(location)) throw new FileNotFoundException("The assembly cannot be found at the provided location.", location);
-
         // Create a new instance of the DefaultAssemblyResolver.
         var resolver = new DefaultAssemblyResolver();
 
@@ -91,19 +83,12 @@ public static class MonoCecilExtensions
         resolver.AddSearchDirectory(Path.GetDirectoryName(typeof(int).Assembly.Location));
         resolver.AddSearchDirectory(Path.Combine(Path.GetDirectoryName(typeof(int).Assembly.Location), "Facades"));
 
-        try
+        // Read and return the assembly using the provided location and reader parameters.
+        return AssemblyDefinition.ReadAssembly(location, new ReaderParameters()
         {
-            // Read and return the assembly using the provided location and reader parameters.
-            return AssemblyDefinition.ReadAssembly(location, new ReaderParameters()
-            {
-                AssemblyResolver = resolver,
-                ReadWrite = readWrite,
-            });
-        }
-        catch (BadImageFormatException ex)
-        {
-            throw new BadImageFormatException("The file at the provided location is not a valid .NET assembly.", ex);
-        }
+            AssemblyResolver = resolver,
+            ReadWrite = readWrite,
+        });
     }
 
     /// <summary>
@@ -195,12 +180,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="attribute">The attribute to be cloned.</param>
     /// <returns>A clone of the original attribute.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the attribute to be cloned is null.</exception>
     public static CustomAttribute Clone(this CustomAttribute attribute)
     {
-        // Check that this attribute isn't null
-        if (attribute == null) throw new ArgumentNullException(nameof(attribute), "The attribute to be cloned cannot be null.");
-
         // Create a new CustomAttribute with the constructor of the original attribute.
         var clonedAttribute = new CustomAttribute(attribute.Constructor);
 
@@ -222,12 +203,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="interface">The interface to be cloned.</param>
     /// <returns>A clone of the original interface.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the interface to be cloned is null.</exception>
     public static InterfaceImplementation Clone(this InterfaceImplementation @interface)
     {
-        // Check that this interface isn't null
-        if (@interface == null) throw new ArgumentNullException(nameof(@interface), "The interface to be cloned cannot be null.");
-
         // Create a new InterfaceImplementation with the type the original interface.
         var clonedInterface = new InterfaceImplementation(@interface.InterfaceType);
 
@@ -243,12 +220,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="field">The field to be cloned.</param>
     /// <returns>A clone of the original field.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the field to be cloned is null.</exception>
     public static FieldDefinition Clone(this FieldDefinition field)
     {
-        // Check that this field isn't null
-        if (field == null) throw new ArgumentNullException(nameof(field), "The field to be cloned cannot be null.");
-
         // Create a new FieldDefinition with the same properties as the original field.
         var clonedField = new FieldDefinition(field.Name, field.Attributes, field.FieldType);
 
@@ -270,12 +243,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="property">The property to be cloned.</param>
     /// <returns>A clone of the original property.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the property to be cloned is null.</exception>
     public static PropertyDefinition Clone(this PropertyDefinition property)
     {
-        // Check that this property isn't null
-        if (property == null) throw new ArgumentNullException(nameof(property), "The property to be cloned cannot be null.");
-
         // Create a new PropertyDefinition with the same properties as the original property.
         var clonedProperty = new PropertyDefinition(property.Name, property.Attributes, property.PropertyType);
 
@@ -295,12 +264,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="parameter">The parameter to be cloned.</param>
     /// <returns>A clone of the original parameter.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the parameter to be cloned is null.</exception>
     public static ParameterDefinition Clone(this ParameterDefinition parameter)
     {
-        // Check that this parameter isn't null
-        if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter to be cloned cannot be null.");
-
         // Create a new ParameterDefinition with the same properties as the original parameter.
         var clonedParameter = new ParameterDefinition(parameter.Name, parameter.Attributes, parameter.ParameterType);
 
@@ -316,12 +281,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="variable">The variable to be cloned.</param>
     /// <returns>A clone of the original variable.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the variable to be cloned is null.</exception>
     public static VariableDefinition Clone(this VariableDefinition variable)
     {
-        // Check that this variable isn't null
-        if (variable == null) throw new ArgumentNullException(nameof(variable), "The variable to be cloned cannot be null.");
-
         // Create and return a new VariableDefinition with the same type as the original variable.
         return new VariableDefinition(variable.VariableType);
     }
@@ -331,12 +292,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="instruction">The instruction to be cloned.</param>
     /// <returns>A clone of the original instruction.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the instruction to be cloned is null.</exception>
     public static Instruction Clone(this Instruction instruction)
     {
-        // Check that this instruction isn't null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The instruction to be cloned cannot be null.");
-
         // Create a new Instruction with a default opcode.
         var clonedInstruction = Instruction.Create(OpCodes.Nop);
 
@@ -353,12 +310,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="method">The method to be cloned.</param>
     /// <returns>A clone of the original method.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the method to be cloned is null.</exception>
     public static MethodDefinition Clone(this MethodDefinition method)
     {
-        // Check that this method isn't null
-        if (method == null) throw new ArgumentNullException(nameof(method), "The method to be cloned cannot be null.");
-
         // Create a new MethodDefinition with the same properties as the original method.
         var clonedMethod = new MethodDefinition(method.Name, method.Attributes, method.ReturnType)
         {
@@ -405,14 +358,8 @@ public static class MonoCecilExtensions
     /// <param name="interface">InterfaceImplementation that may have its InterfaceType updated.</param>
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this InterfaceImplementation @interface, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (@interface == null) throw new ArgumentNullException(nameof(@interface), "Interface cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
-
         // If the interface's type matches the source type, update it to the destination type
         if (@interface.InterfaceType == src) @interface.InterfaceType = dest;
     }
@@ -423,14 +370,8 @@ public static class MonoCecilExtensions
     /// <param name="field">FieldDefinition that may have its FieldType updated.</param>
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this FieldDefinition field, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (field == null) throw new ArgumentNullException(nameof(field), "Field cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
-
         // If the field's type matches the source type, update it to the destination type
         if (field.FieldType == src) field.FieldType = dest;
     }
@@ -444,14 +385,8 @@ public static class MonoCecilExtensions
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
     /// <returns>A FieldReference with updated types, or the original FieldReference if no updates were made.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static FieldReference UpdateTypes(this FieldReference field, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // Check if the field's FieldType or DeclaringType matches the source type, and if so, replace them with the destination type
         if (field.FieldType == src) field.FieldType = dest;
         if (field.DeclaringType == src) field.DeclaringType = dest;
@@ -467,14 +402,8 @@ public static class MonoCecilExtensions
     /// <param name="property">PropertyDefinition that may have its PropertyType updated.</param>
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (property == null) throw new ArgumentNullException(nameof(property), "Property cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
-
         // If the property's type matches the source type, update it to the destination type
         if (property.PropertyType == src) property.PropertyType = dest;
     }
@@ -485,13 +414,8 @@ public static class MonoCecilExtensions
     /// <param name="parameter">ParameterDefinition that may have its ParameterType updated.</param>
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this ParameterDefinition parameter, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (parameter == null) throw new ArgumentNullException(nameof(parameter), "Parameter cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
 
         // If the parameter's type matches the source type, update it to the destination type
         if (parameter.ParameterType == src) parameter.ParameterType = dest;
@@ -503,14 +427,8 @@ public static class MonoCecilExtensions
     /// <param name="variable">VariableDefinition that may have its VariableType updated.</param>
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this VariableDefinition variable, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (variable == null) throw new ArgumentNullException(nameof(variable), "Variable cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
-
         // If the variable's type matches the source type, update it to the destination type
         if (variable.VariableType == src) variable.VariableType = dest;
     }
@@ -522,14 +440,8 @@ public static class MonoCecilExtensions
     /// <param name="method">MethodDefinition that may have its ReturnType, ParameterTypes, and VariableTypes updated.</param>
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (method == null) throw new ArgumentNullException(nameof(method), "Method cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
-
         // Update method overrides if they match the source type
         for (int i = 0; i < method.Overrides.Count; i++) method.Overrides[i] = method.Overrides[i].UpdateTypes(src, dest);
 
@@ -551,14 +463,8 @@ public static class MonoCecilExtensions
     /// <param name="src">The source type which could be replaced.</param>
     /// <param name="dest">The destination type which could replace the source type.</param>
     /// <returns>A MethodReference with updated types, or the original MethodReference if no updates were made.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static MethodReference UpdateTypes(this MethodReference method, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // Update method parameters to destination type
         foreach (var parameter in method.Parameters) parameter.UpdateTypes(src, dest);
 
@@ -577,14 +483,8 @@ public static class MonoCecilExtensions
     /// <param name="callSite">CallSite that needs its return type and parameters updated.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateTypes(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // Update callsite parameters to destination type
         foreach (var parameter in callSite.Parameters) parameter.UpdateTypes(src, dest);
 
@@ -606,14 +506,8 @@ public static class MonoCecilExtensions
     /// <param name="instruction">Instruction that needs its operand updated.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateInstructionTypes(this Instruction instruction, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // Check operand type and update accordingly
         if (instruction.Operand is ParameterDefinition parameter)
             parameter.UpdateTypes(src, dest);  // Update types in ParameterDefinition
@@ -635,14 +529,8 @@ public static class MonoCecilExtensions
     /// <param name="method">Method whose instructions are to be updated.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateInstructionTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // Update instructions in the method body to the destination type
         if (method.HasBody) foreach (var instruction in method.Body.Instructions) UpdateInstructionTypes(instruction, src, dest);
     }
@@ -665,14 +553,8 @@ public static class MonoCecilExtensions
     /// <param name="property">PropertyDefinition whose getter and setter need to be updated.</param>
     /// <param name="src">The original type which is being replaced.</param>
     /// <param name="dest">The new type which is replacing the original type.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateGettersAndSetters(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
     {
-        // Ensure that none of the arguments are null
-        if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-
         // If the declaring type of the property is the destination type
         if (property.DeclaringType == dest)
         {
@@ -716,13 +598,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="attribute">The custom attribute whose constructor reference needs to be imported.</param>
     /// <param name="module">The module type into whose module the reference should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this CustomAttribute attribute, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (attribute == null) throw new ArgumentNullException(nameof(attribute), "The parameter attribute cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the constructor reference into the module
         attribute.Constructor = module.ImportReference(attribute.Constructor);
     }
@@ -732,13 +609,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="interface">The interface whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this InterfaceImplementation @interface, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (@interface == null) throw new ArgumentNullException(nameof(@interface), "The interface attribute cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the custom attributes references into the module
         foreach (var attribute in @interface.CustomAttributes) attribute.ImportReferences(module);
 
@@ -751,13 +623,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="field">The field whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this FieldDefinition field, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (field == null) throw new ArgumentNullException(nameof(field), "The parameter field cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the custom attributes references into the module
         foreach (var attribute in field.CustomAttributes) attribute.ImportReferences(module);
 
@@ -773,13 +640,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="property">The property whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this PropertyDefinition property, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (property == null) throw new ArgumentNullException(nameof(property), "The parameter property cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the custom attributes references into the module
         foreach (var attribute in property.CustomAttributes) attribute.ImportReferences(module);
 
@@ -795,13 +657,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="parameter">The parameter whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this ParameterDefinition parameter, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (parameter == null) throw new ArgumentNullException(nameof(parameter), "The parameter parameter cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the custom attributes references into the module
         foreach (var attribute in parameter.CustomAttributes) attribute.ImportReferences(module);
 
@@ -814,13 +671,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="variable">The variable whose type references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this VariableDefinition variable, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (variable == null) throw new ArgumentNullException(nameof(variable), "The parameter variable cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the variable type reference into the module
         variable.VariableType = module.ImportReference(variable.VariableType);
     }
@@ -829,13 +681,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="method">The method whose references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this MethodDefinition method, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import method overrides into the module
         for (int i = 0; i < method.Overrides.Count; ++i) method.Overrides[i] = module.ImportReference(method.Overrides[i]);
 
@@ -867,13 +714,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="callSite">The CallSite whose return type references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this CallSite callSite, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (callSite == null) throw new ArgumentNullException(nameof(callSite), "The parameter callSite cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the return type reference of the callSite into the module
         callSite.ReturnType = module.ImportReference(callSite.ReturnType);
     }
@@ -882,13 +724,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="instruction">The instruction whose operand references need to be imported.</param>
     /// <param name="module">The module type into whose module the references should be imported.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void ImportReferences(this Instruction instruction, ModuleDefinition module)
     {
-        // Ensure that none of the arguments are null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
-        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
-
         // Import the operand references of the instruction into the module
         if (instruction.Operand is ParameterDefinition parameter)
             parameter.ImportReferences(module);
@@ -916,14 +753,8 @@ public static class MonoCecilExtensions
     /// <param name="instruction">The instruction to modify.</param>
     /// <param name="leftMethod">The first method to swap.</param>
     /// <param name="rightMethod">The second method to swap.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethodReferences(this Instruction instruction, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
-        // Ensure that none of the arguments are null
-        if (instruction == null) throw new ArgumentNullException(nameof(instruction), "The parameter instruction cannot be null.");
-        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
-        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
-
         // If the instruction's operand is a method reference
         if (instruction.Operand is MethodReference method)
         {
@@ -942,14 +773,8 @@ public static class MonoCecilExtensions
     /// <param name="instructions">The collection of instructions to modify.</param>
     /// <param name="leftMethod">The first method to swap.</param>
     /// <param name="rightMethod">The second method to swap.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethodReferences(this Collection<Instruction> instructions, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
-        // Ensure that none of the arguments are null
-        if (instructions == null) throw new ArgumentNullException(nameof(instructions), "The parameter instructions cannot be null.");
-        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
-        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
-
         // Swap method references for each instruction in the collection
         foreach (var instruction in instructions)
             instruction.SwapMethodReferences(leftMethod, rightMethod);
@@ -961,14 +786,8 @@ public static class MonoCecilExtensions
     /// <param name="method">The method to modify.</param>
     /// <param name="leftMethod">The first method to swap.</param>
     /// <param name="rightMethod">The second method to swap.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethodReferences(this MethodDefinition method, MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
-        // Ensure that none of the arguments are null
-        if (method == null) throw new ArgumentNullException(nameof(method), "The parameter method cannot be null.");
-        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
-        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
-
         // Swap method references for each instruction in the method's body
         if (method.HasBody) method.Body.Instructions.SwapMethodReferences(leftMethod, rightMethod);
     }
@@ -978,13 +797,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="leftMethod">The first method to swap.</param>
     /// <param name="rightMethod">The second method to swap.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapMethods(this MethodDefinition leftMethod, MethodDefinition rightMethod)
     {
-        // Ensure that none of the arguments are null
-        if (leftMethod == null) throw new ArgumentNullException(nameof(leftMethod), "The parameter leftMethod cannot be null.");
-        if (rightMethod == null) throw new ArgumentNullException(nameof(rightMethod), "The parameter rightMethod cannot be null.");
-
         // Save the left method's original details
         var leftBody = leftMethod.Body;
         var leftAttributes = leftMethod.Attributes;
@@ -1029,12 +843,8 @@ public static class MonoCecilExtensions
     /// Finds and swaps methods with the same full name within the given type.
     /// </summary>
     /// <param name="type">The type to modify.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapDuplicateMethods(this TypeDefinition type)
     {
-        // Check that this type isn't null
-        if (type == null) throw new ArgumentNullException(nameof(type), "The parameter type cannot be null.");
-
         // This HashSet is used for tracking the methods that have already been swapped.
         var alreadySwapped = new HashSet<string>();
 
@@ -1065,12 +875,8 @@ public static class MonoCecilExtensions
     /// Finds and swaps methods with the same full name within each type in the given collection.
     /// </summary>
     /// <param name="types">The collection of types to modify.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void SwapDuplicateMethods(this Collection<TypeDefinition> types)
     {
-        // Check that this types isn't null
-        if (types == null) throw new ArgumentNullException(nameof(types), "The parameter types cannot be null.");
-
         // Swap duplicate methods for each type in the collection
         foreach (var type in types)
             type.SwapDuplicateMethods();
@@ -1087,18 +893,8 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="dest">The destination type definition where fields, properties, and methods from source will be added.</param>
     /// <param name="src">The source type definition whose fields, properties, and methods will be cloned and added to the destination.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
     {
-        // Ensure that none of the arguments are null
-        if (dest == null) throw new ArgumentNullException(nameof(dest), "The parameter dest cannot be null.");
-        if (src == null) throw new ArgumentNullException(nameof(src), "The parameter src cannot be null.");
-
-        // Check that src's Fields, Properties, and Methods aren't null
-        if (src.Fields == null || src.Properties == null || src.Methods == null) throw new ArgumentNullException(nameof(src), "Fields, Properties, or Methods of the source TypeDefinition cannot be null.");
-        // Check that dest's Methods aren't null
-        if (dest.Methods == null) throw new ArgumentNullException(nameof(dest), "Methods of the destination TypeDefinition cannot be null.");
-
         // Clone attributes from the source and add to the destination
         var clonedAttributes = new Collection<CustomAttribute>();
         foreach (var attribute in src.CustomAttributes)
@@ -1149,9 +945,6 @@ public static class MonoCecilExtensions
         // Process each method
         foreach (var clonedMethod in clonedMethods.ToList())
         {
-            if (clonedMethod == null || clonedMethod.Body == null || clonedMethod.Body.Instructions == null)
-                throw new ArgumentNullException(nameof(clonedMethod), "clonedMethod, its Body, or its Body.Instructions cannot be null.");
-
             // Special handling for constructors
             if (clonedMethod.Name is ".ctor" or ".cctor" or "Finalize")
             {
@@ -1281,12 +1074,8 @@ public static class MonoCecilExtensions
     /// This includes updating the types, getters and setters, and instruction types, as well as importing references and swapping duplicate methods.
     /// </summary>
     /// <param name="assembly">The assembly to be updated.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
     public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly)
     {
-        // Check that this assembly isn't null
-        if (assembly == null) throw new ArgumentNullException(nameof(assembly), "The parameter assembly cannot be null.");
-
         // Check if update information exists for the assembly
         if (assemblyUpdateInfo.TryGetValue(assembly, out var updateInfo))
         {
