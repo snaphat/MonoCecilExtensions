@@ -25,6 +25,11 @@ public static class MonoCecilExtensions
         internal readonly Collection<CustomAttribute> updatedAttributes = new();
 
         /// <summary>
+        /// A collection of InterfaceImplementation objects that have been updated.
+        /// </summary>
+        internal readonly Collection<InterfaceImplementation> updatedInterfaces = new();
+
+        /// <summary>
         /// A collection of FieldDefinition objects that have been updated.
         /// </summary>
         internal readonly Collection<FieldDefinition> updatedFields = new();
@@ -213,6 +218,27 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
+    /// Clones a InterfaceImplementation.
+    /// </summary>
+    /// <param name="interface">The interface to be cloned.</param>
+    /// <returns>A clone of the original interface.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when the interface to be cloned is null.</exception>
+    public static InterfaceImplementation Clone(this InterfaceImplementation @interface)
+    {
+        // Check that this interface isn't null
+        if (@interface == null) throw new ArgumentNullException(nameof(@interface), "The interface to be cloned cannot be null.");
+
+        // Create a new InterfaceImplementation with the type the original interface.
+        var clonedInterface = new InterfaceImplementation(@interface.InterfaceType);
+
+        // Copy all custom attributes from the original interface to the cloned interface.
+        foreach (var attribute in @interface.CustomAttributes) clonedInterface.CustomAttributes.Add(attribute.Clone());
+
+        // Return the cloned interface.
+        return clonedInterface;
+    }
+
+    /// <summary>
     /// Clones a FieldDefinition.
     /// </summary>
     /// <param name="field">The field to be cloned.</param>
@@ -369,6 +395,24 @@ public static class MonoCecilExtensions
     // Extension methods for replacing references to a source type with references to a destination type within Mono.Cecil objects.
     // This is used to ensure that copied fields, properties, and methods reference copied types instead of the originals.
     #region UpdateTypes
+
+    /// <summary>
+    /// Updates the InterfaceType of the given InterfaceImplementation, if it matches the source type, to the destination type.
+    /// </summary>
+    /// <param name="interface">InterfaceImplementation that may have its InterfaceType updated.</param>
+    /// <param name="src">The source type which could be replaced.</param>
+    /// <param name="dest">The destination type which could replace the source type.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static void UpdateTypes(this InterfaceImplementation @interface, TypeDefinition src, TypeDefinition dest)
+    {
+        // Ensure that none of the arguments are null
+        if (@interface == null) throw new ArgumentNullException(nameof(@interface), "Interface cannot be null.");
+        if (src == null) throw new ArgumentNullException(nameof(src), "Source type cannot be null.");
+        if (dest == null) throw new ArgumentNullException(nameof(dest), "Destination type cannot be null.");
+
+        // If the interface's type matches the source type, update it to the destination type
+        if (@interface.InterfaceType == src) @interface.InterfaceType = dest;
+    }
 
     /// <summary>
     /// Updates the FieldType of the given FieldDefinition, if it matches the source type, to the destination type.
@@ -703,6 +747,25 @@ public static class MonoCecilExtensions
 
         // Import the constructor reference into the module
         attribute.Constructor = module.ImportReference(attribute.Constructor);
+    }
+
+    /// <summary>
+    /// Imports the interface type and custom attributes references of an interface into a module.
+    /// </summary>
+    /// <param name="interface">The interface whose references need to be imported.</param>
+    /// <param name="module">The module type into whose module the references should be imported.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any of the parameters are null.</exception>
+    public static void ImportReferences(this InterfaceImplementation @interface, ModuleDefinition module)
+    {
+        // Ensure that none of the arguments are null
+        if (@interface == null) throw new ArgumentNullException(nameof(@interface), "The interface attribute cannot be null.");
+        if (module == null) throw new ArgumentNullException(nameof(module), "The parameter module cannot be null.");
+
+        // Import the custom attributes references into the module
+        foreach (var attribute in @interface.CustomAttributes) attribute.ImportReferences(module);
+
+        // Import the interface type reference into the module
+        @interface.InterfaceType = module.ImportReference(@interface.InterfaceType);
     }
 
     /// <summary>
@@ -1064,6 +1127,15 @@ public static class MonoCecilExtensions
             clonedAttributes.Add(clonedAttribute);
         }
 
+        // Clone interfaces from the source and add to the destination
+        var clonedInterfaces = new Collection<InterfaceImplementation>();
+        foreach (var @interface in src.Interfaces)
+        {
+            var clonedInterface = @interface.Clone();
+            dest.Interfaces.Add(clonedInterface);
+            clonedInterfaces.Add(clonedInterface);
+        }
+
         // Clone fields from the source and add to the destination
         var clonedFields = new Collection<FieldDefinition>();
         foreach (var field in src.Fields)
@@ -1203,10 +1275,11 @@ public static class MonoCecilExtensions
         // Add updated methods to the destination type
         foreach (var method in clonedMethods) dest.Methods.Add(method);
 
-        // Add updated attributes, fields, properties and methods to the update info
+        // Add updated attributes, interfaces, fields, properties and methods to the update info
         if (!assemblyUpdateInfo.TryGetValue(dest.Module.Assembly, out var updateInfo))
             updateInfo = assemblyUpdateInfo[dest.Module.Assembly] = new();
         foreach (var attribute in clonedAttributes) updateInfo.updatedAttributes.Add(attribute);
+        foreach (var @interface in clonedInterfaces) updateInfo.updatedInterfaces.Add(@interface);
         foreach (var field in clonedFields) updateInfo.updatedFields.Add(field);
         foreach (var property in clonedProperties) updateInfo.updatedProperties.Add(property);
         foreach (var method in updatedMethods) updateInfo.updatedMethods.Add(method);
@@ -1236,7 +1309,9 @@ public static class MonoCecilExtensions
         // Check if update information exists for the assembly
         if (assemblyUpdateInfo.TryGetValue(assembly, out var updateInfo))
         {
-            // Update types in fields, properties, and methods
+            // Update types in interfaces, fields, properties, and methods
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var @interface in updateInfo.updatedInterfaces) @interface.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
             for (int i = 0; i < updateInfo.destTypes.Count; ++i)
                 foreach (var field in updateInfo.updatedFields) field.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
             for (int i = 0; i < updateInfo.destTypes.Count; ++i)
@@ -1252,8 +1327,9 @@ public static class MonoCecilExtensions
             for (int i = 0; i < updateInfo.destTypes.Count; ++i)
                 foreach (var method in updateInfo.updatedMethods) method.UpdateInstructionTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
 
-            // Import references for attributes, fields, properties, and methods from the main module of the assembly
+            // Import references for attributes, interfaces, fields, properties, and methods from the main module of the assembly
             foreach (var attribute in updateInfo.updatedAttributes) attribute.ImportReferences(assembly.MainModule);
+            foreach (var @interface in updateInfo.updatedInterfaces) @interface.ImportReferences(assembly.MainModule);
             foreach (var field in updateInfo.updatedFields) field.ImportReferences(assembly.MainModule);
             foreach (var property in updateInfo.updatedProperties) property.ImportReferences(assembly.MainModule);
             foreach (var method in updateInfo.updatedMethods) method.ImportReferences(assembly.MainModule);
