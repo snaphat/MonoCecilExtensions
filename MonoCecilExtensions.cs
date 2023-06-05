@@ -884,6 +884,36 @@ public static class MonoCecilExtensions
 
     #endregion SwapMethods
 
+    // Extension method that handles adding types to an assembly.
+    #region AddType
+
+    /// <summary>
+    /// Adds a type to an assembly. This includes adding the type's fields, properties, and methods.
+    /// If the source type is nested, it will be added as a nested type within the parent type in the destination assembly.
+    /// </summary>
+    /// <param name="assembly">The assembly to which the type will be added.</param>
+    /// <param name="src">The source type that will be added to the assembly.</param>
+    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src)
+    {
+        // Create a new TypeDefinition with the same properties as the source type
+        var dest = new TypeDefinition(src.Namespace, src.Name, src.Attributes);
+
+        // If the source type isn't nested, add the new type directly to the assembly's types
+        // Otherwise, find the declaring type in the assembly and add the new type as a nested type
+        if (!src.IsNested)
+            assembly.MainModule.Types.Add(dest);
+        else
+            assembly.FindType(src.DeclaringType.FullName).NestedTypes.Add(dest);
+
+        // Set the base type of the new type to match the base type of the source type
+        dest.BaseType = src.BaseType;
+
+        // Add the fields, properties, and methods from the source type to the new type
+        dest.AddFieldsPropertiesAndMethods(src);
+    }
+
+    #endregion AddType
+
     // Extension method that handles the addition of fields, properties, and methods from a source type to a destination type.
     // This is a key part of merging two types, ensuring the destination type includes all necessary components from the source type.
     #region AddFieldsPropertiesAndMethods
@@ -1070,10 +1100,12 @@ public static class MonoCecilExtensions
     #region UpdateFieldsPropertiesAndMethods
 
     /// <summary>
-    /// Updates the fields, properties, and methods within a given assembly.
-    /// This includes updating the types, getters and setters, and instruction types, as well as importing references and swapping duplicate methods.
+    /// Updates the types of attributes, interfaces, fields, properties, and methods within a given assembly.
+    /// This includes updating the types in interfaces, fields, properties, and methods. It also updates the getter and setter methods for properties, 
+    /// updates the instruction types for methods, imports references for attributes, interfaces, fields, properties, and methods, 
+    /// imports base types of each destination type, and swaps any duplicate methods in the destination types.
     /// </summary>
-    /// <param name="assembly">The assembly to be updated.</param>
+    /// <param name="assembly">The assembly to be updated. This assembly's types are matched against the source types and replaced with the corresponding destination types, based on previously registered update information.</param>
     public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly)
     {
         // Check if update information exists for the assembly
@@ -1097,12 +1129,15 @@ public static class MonoCecilExtensions
             for (int i = 0; i < updateInfo.destTypes.Count; ++i)
                 foreach (var method in updateInfo.updatedMethods) method.UpdateInstructionTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
 
-            // Import references for attributes, interfaces, fields, properties, and methods from the main module of the assembly
+            // Import references for attributes, interfaces, fields, properties, and methods
             foreach (var attribute in updateInfo.updatedAttributes) attribute.ImportReferences(assembly.MainModule);
             foreach (var @interface in updateInfo.updatedInterfaces) @interface.ImportReferences(assembly.MainModule);
             foreach (var field in updateInfo.updatedFields) field.ImportReferences(assembly.MainModule);
             foreach (var property in updateInfo.updatedProperties) property.ImportReferences(assembly.MainModule);
             foreach (var method in updateInfo.updatedMethods) method.ImportReferences(assembly.MainModule);
+
+            // Import base type of each dest type
+            foreach (var type in updateInfo.destTypes) type.BaseType = assembly.MainModule.ImportReference(type.BaseType);
 
             // Swap any duplicate methods in the destination types
             updateInfo.destTypes.SwapDuplicateMethods();
