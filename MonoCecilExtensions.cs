@@ -843,7 +843,8 @@ public static class MonoCecilExtensions
     /// Finds and swaps methods with the same full name within the given type.
     /// </summary>
     /// <param name="type">The type to modify.</param>
-    public static void SwapDuplicateMethods(this TypeDefinition type)
+    /// <param name="avoidSignatureConflicts">Avoid signature conflicts by changing original method parameters to be base object types</param>
+    public static void SwapDuplicateMethods(this TypeDefinition type, bool avoidSignatureConflicts = false)
     {
         // This HashSet is used for tracking the methods that have already been swapped.
         var alreadySwapped = new HashSet<string>();
@@ -866,20 +867,16 @@ public static class MonoCecilExtensions
                     _ = alreadySwapped.Add(methodLeft.FullName);
                     // Swap the two methods
                     methodLeft.SwapMethods(methodRight);
+
+                    // Change the original method types to be generic to avoid signature conflicts
+                    if (avoidSignatureConflicts)
+                    {
+                        foreach (var parameter in methodRight.Parameters)
+                            if (!parameter.ParameterType.IsValueType) parameter.ParameterType = type.Module.ImportReference(typeof(object));
+                    }
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Finds and swaps methods with the same full name within each type in the given collection.
-    /// </summary>
-    /// <param name="types">The collection of types to modify.</param>
-    public static void SwapDuplicateMethods(this Collection<TypeDefinition> types)
-    {
-        // Swap duplicate methods for each type in the collection
-        foreach (var type in types)
-            type.SwapDuplicateMethods();
     }
 
     #endregion SwapMethods
@@ -893,12 +890,12 @@ public static class MonoCecilExtensions
     /// </summary>
     /// <param name="assembly">The assembly to which the type will be added.</param>
     /// <param name="src">The source type that will be added to the assembly.</param>
-    /// <param name="avoidNameConflicts">Avoid name conflicts by adding a '_' suffix to the copied class name.</param>
-    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src, bool avoidNameConflicts = false)
+    /// <param name="avoidSignatureConflicts">Avoid name conflicts by adding a '_' suffix to the copied class name.</param>
+    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src, bool avoidSignatureConflicts = false)
     {
-        // Check for name conflict avoidance
+        // Check for signature conflict avoidance
         var srcName = src.Name;
-        if (avoidNameConflicts) src.Name += "_";
+        if (avoidSignatureConflicts) src.Name += "_";
 
         // Create a new TypeDefinition with the same properties as the source type
         var dest = new TypeDefinition(src.Namespace, src.Name, src.Attributes);
@@ -917,7 +914,7 @@ public static class MonoCecilExtensions
         dest.AddFieldsPropertiesAndMethods(src);
 
         // Restore name
-        if (avoidNameConflicts) src.Name = srcName;
+        if (avoidSignatureConflicts) src.Name = srcName;
     }
 
     #endregion AddType
@@ -1118,7 +1115,8 @@ public static class MonoCecilExtensions
     /// imports base types of each destination type, and swaps any duplicate methods in the destination types.
     /// </summary>
     /// <param name="assembly">The assembly to be updated. This assembly's types are matched against the source types and replaced with the corresponding destination types, based on previously registered update information.</param>
-    public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly)
+    /// <param name="avoidSignatureConflicts">Avoid signature conflicts by changing original method parameters to be base object types for duplicate methods</param>
+    public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly, bool avoidSignatureConflicts = false)
     {
         // Check if update information exists for the assembly
         if (assemblyUpdateInfo.TryGetValue(assembly, out var updateInfo))
@@ -1152,7 +1150,7 @@ public static class MonoCecilExtensions
             foreach (var type in updateInfo.destTypes) type.BaseType = assembly.MainModule.ImportReference(type.BaseType);
 
             // Swap any duplicate methods in the destination types
-            updateInfo.destTypes.SwapDuplicateMethods();
+            foreach (var type in updateInfo.destTypes) type.SwapDuplicateMethods(avoidSignatureConflicts);
 
             // Remove the assembly from the update information collection
             _ = assemblyUpdateInfo.Remove(assembly);
