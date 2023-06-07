@@ -621,9 +621,42 @@ public static class MonoCecilExtensions
             clonedMethod.Body.MaxStackSize = method.Body.MaxStackSize;
             clonedMethod.Body.InitLocals = method.Body.InitLocals;
 
-            // Clone all instructions and variables and add them to the cloned method's body.
-            foreach (var instruction in method.Body.Instructions) clonedMethod.Body.Instructions.Add(instruction.Clone());
+            // Clone all variables and add them to the cloned method's body.
             foreach (var variable in method.Body.Variables) clonedMethod.Body.Variables.Add(variable.Clone());
+
+            // Instruction mapping from old to new instructions used to update branch targets which is necessary after cloning
+            var instructionMapping = new Dictionary<Instruction, Instruction>();
+
+            // Clone all the instructions and create the mapping.
+            foreach (var instruction in method.Body.Instructions)
+            {
+                var clonedInstruction = instruction.Clone();
+                instructionMapping[instruction] = clonedInstruction;
+                clonedMethod.Body.Instructions.Add(clonedInstruction);
+            }
+
+            // Now fix up the branch targets.
+            foreach (var instruction in clonedMethod.Body.Instructions)
+            {
+                // If the instruction is a branch instruction, fix up its target.
+                if (instruction.OpCode.FlowControl == FlowControl.Branch ||
+                    instruction.OpCode.FlowControl == FlowControl.Cond_Branch)
+                {
+                    instruction.Operand = instructionMapping[(Instruction)instruction.Operand];
+                }
+
+                // If the instruction is a switch instruction, fix up its targets.
+                if (instruction.OpCode == OpCodes.Switch)
+                {
+                    var oldTargets = (Instruction[])instruction.Operand;
+                    var newTargets = new Instruction[oldTargets.Length];
+                    for (int i = 0; i < oldTargets.Length; ++i)
+                    {
+                        newTargets[i] = instructionMapping[oldTargets[i]];
+                    }
+                    instruction.Operand = newTargets;
+                }
+            }
         }
 
         // Return the cloned method.
