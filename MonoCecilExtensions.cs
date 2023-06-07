@@ -61,6 +61,9 @@ public static class MonoCecilExtensions
     /// </summary>
     public static readonly Dictionary<AssemblyDefinition, UpdateInfo> assemblyUpdateInfo = new();
 
+    /// <summary>
+    /// Additional search directories for resolving assembly types.
+    /// </summary>
     public static readonly Collection<string> additionalSearchDirectories = new();
 
     // Basic extension methods for loading assemblies, adding elements to collections, and finding types, fields, and methods in Mono.Cecil objects.
