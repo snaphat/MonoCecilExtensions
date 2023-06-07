@@ -1,6 +1,8 @@
 # MonoCecilExtensions
 The `MonoCecilExtensions` is a static class that provides extension methods for classes from the Mono.Cecil library. Mono.Cecil is a popular library used for reading and writing Intermediate Language (IL) code. With the added functionality of `MonoCecilExtensions`, manipulation of IL code becomes even more convenient, enabling users to easily clone, merge, and update types in collections, methods, fields, and other components of a .NET assembly.
 
+
+
 ## Static Properties
 
 ### UpdateInfo
@@ -61,6 +63,51 @@ FindMethods(this TypeDefinition type, string methodSignature)
 ```
 These two methods find a method or methods in a type. The `FindMethod` method returns the `MethodDefinition` object of the found method or `null` if not found, while the `FindMethods` method returns a collection of `MethodDefinition` objects for all found methods that match the given `methodSignature`, or an empty collection if none are found.
 
+
+
+## AddType Extension Method
+The `MonoCecilExtensions` class offers a method that simplifies adding types to an assembly when using `Mono.Cecil`.
+
+### Add a Type to an Assembly
+```C#
+AddType(this AssemblyDefinition assembly, TypeDefinition src, bool avoidSignatureConflicts = false)
+```
+This method adds a type to an assembly. This includes adding the type's fields, properties, and methods. If the source type is nested, it will be added as a nested type within the parent type in the destination assembly. The `avoidSignatureConflicts` parameter determines if the method should avoid name conflicts by adding a '_' suffix to the copied class name.
+
+## AddFieldsPropertiesAndMethods Extension Method
+
+The `MonoCecilExtensions` class provides an extension method for adding fields, properties, and methods from a source type to a destination type.
+
+### Merging Two Types
+```C#
+AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
+```
+This method merges the source type into the destination type by cloning the fields, properties, and methods of the source, updating their types, and adding them to the destination. This is a key part of merging two types, ensuring the destination type includes all necessary components from the source type.
+
+The `dest` parameter is the destination type definition where fields, properties, and methods from the source will be added.
+
+The `src` parameter is the source type definition whose fields, properties, and methods will be cloned and added to the destination.
+
+
+
+## UpdateFieldsPropertiesAndMethods Extension Method
+
+The `MonoCecilExtensions` class provides an extension method for updating fields, properties, and methods within a destination type after they have been cloned from a source type.
+
+### Update Types in an Assembly
+```C#
+UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly, bool avoidSignatureConflicts = false)
+```
+This method updates the types of attributes, interfaces, fields, properties, and methods within a given assembly. This includes updating the types in interfaces, fields, properties, and methods. It also updates the getter and setter methods for properties, updates the instruction types for methods, imports references for attributes, interfaces, fields, properties, and methods, imports base types of each destination type, and swaps any duplicate methods in the destination types.
+
+The `avoidSignatureConflicts` parameter determines if the method should avoid signature conflicts by changing original method parameters to be base object types for duplicate methods.
+
+
+
+# Additional internally used APIs
+
+
+
 ## Clone Extension Methods
 The `MonoCecilExtensions` class also provides extension methods for cloning various Mono.Cecil objects. This is useful when you want to create a copy of an object without modifying the original object. The clone methods return a new object that is identical to the original but distinct in memory.
 
@@ -111,6 +158,8 @@ This method clones an `Instruction` object. The parameter to be cloned is an `In
 Clone(this MethodDefinition method)
 ```
 This method clones a `MethodDefinition` object. The parameter to be cloned is a `MethodDefinition` and it returns a clone of the original method.
+
+
 
 ## UpdateTypes Extension Methods
 The `MonoCecilExtensions` class also provides extension methods for updating type references within various Mono.Cecil objects. These methods ensure that copied fields, properties, and methods reference the copied types instead of the originals.
@@ -169,6 +218,8 @@ UpdateTypes(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
 ```
 This method updates the `ReturnType` and `Parameters` of a `CallSite`, if they match the source type, to the destination type.
 
+
+
 ## UpdateInstructionTypes Extension Methods
 The `MonoCecilExtensions` class also provides extension methods for updating type references within `Mono.Cecil.Instruction` objects. These methods are crucial for ensuring that the instructions within methods correctly reference the fields, properties, and methods of the destination type after cloning from the source type.
 
@@ -183,6 +234,8 @@ This method updates the `Operand` of an `Instruction` when merging classes. The 
 UpdateInstructionTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
 ```
 This method updates all instructions in the method's body. If the instruction's operand type matches the source type, it is replaced with the destination type.
+
+
 
 ## UpdateGettersAndSetters Extension Method
 The `MonoCecilExtensions` class provides an extension method for updating getter and setter references within `Mono.Cecil.PropertyDefinition` objects. This method ensures that the properties of the destination type reference the correct getters and setters after cloning from the source type.
@@ -199,6 +252,8 @@ This method updates the getter and setter methods of a `PropertyDefinition` to r
 - Finds the equivalent methods in dest (if they exist), and updates the property's getter/setter methods to reference them
 
 This process ensures that the property correctly interacts with the destination type after merging.
+
+
 
 ## ImportReferences Extension Methods
 The `MonoCecilExtensions` class provides several extension methods for importing references from one module to another using `Mono.Cecil`. These methods are crucial when merging assembly classes as they allow the destination type to access types that may not have been referenced prior.
@@ -256,3 +311,57 @@ This method imports the return type references of a CallSite into a module.
 ImportReferences(this Instruction instruction, ModuleDefinition module)
 ```
 This method imports the operand type references of an instruction into a module.
+
+
+
+## SwapMethods Extension Methods
+The `MonoCecilExtensions` class provides several extension methods for swapping method implementations between different types using `Mono.Cecil`. These methods can be used when you want to replace method functionality in the destination type with the corresponding functionality from the source type.
+
+### Swap Method References within an Instruction
+```C#
+SwapMethodReferences(this Instruction instruction, MethodDefinition leftMethod, MethodDefinition rightMethod)
+```
+This method swaps the method references within the provided instruction between two given methods.
+
+### Swap Method References within a Collection of Instructions
+```C#
+SwapMethodReferences(this Collection<Instruction> instructions, MethodDefinition leftMethod, MethodDefinition rightMethod)
+```
+This method swaps the method references within the provided collection of instructions between two given methods.
+
+### Swap Method References within a Method's Body
+```C#
+SwapMethodReferences(this MethodDefinition method, MethodDefinition leftMethod, MethodDefinition rightMethod)
+```
+This method swaps the method references within the body of the provided method between two given methods.
+
+### Swap Attributes, Parameters, Custom Attributes, and Generic Parameters between Two Methods
+```C#
+SwapMethods(this MethodDefinition leftMethod, MethodDefinition rightMethod)
+```
+This method swaps the attributes, parameters, custom attributes, and generic parameters between two given methods.
+
+### Find and Swap Methods with the Same Full Name within a Type
+```C#
+SwapDuplicateMethods(this TypeDefinition type, bool avoidSignatureConflicts = false)
+```
+This method finds and swaps methods with the same full name within the given type. It also provides an option to avoid signature conflicts by changing original method parameters to be base object types.
+
+
+
+## InstructionOptimizations Extension Methods
+The `MonoCecilExtensions` class also offers methods that help with instruction optimizations when using `Mono.Cecil`.
+
+### Determine if an Instruction can be Optimized Out
+```C#
+CanBeOptimizedOut(this Instruction instruction, MethodDefinition method)
+```
+This method checks if a given instruction within a method can be optimized out. Specifically, it looks for type conversion instructions (Isinst or Castclass) that are unnecessary because the type of the value at the top of the stack is already the target conversion type. It returns true if the instruction can be optimized out, otherwise it returns false.
+
+### Optimize Instructions in a Method
+```C#
+OptimizeInstructions(this MethodDefinition method)
+```
+This method optimizes a given method by removing any instructions that can be optimized out. It works by checking each instruction within the method and removing it if it can be optimized out, based on the criteria set in the `CanBeOptimizedOut()` method.
+
+
