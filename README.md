@@ -104,7 +104,7 @@ The `avoidSignatureConflicts` parameter determines if the method should avoid si
 
 
 
-# Additional internally used APIs
+# Additional Internal APIs
 
 
 
