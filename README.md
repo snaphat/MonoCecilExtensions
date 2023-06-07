@@ -168,3 +168,91 @@ This method updates the `ReturnType` and `DeclaringType` of a `MethodReference`,
 UpdateTypes(this CallSite callSite, TypeDefinition src, TypeDefinition dest)
 ```
 This method updates the `ReturnType` and `Parameters` of a `CallSite`, if they match the source type, to the destination type.
+
+## UpdateInstructionTypes Extension Methods
+The `MonoCecilExtensions` class also provides extension methods for updating type references within `Mono.Cecil.Instruction` objects. These methods are crucial for ensuring that the instructions within methods correctly reference the fields, properties, and methods of the destination type after cloning from the source type.
+
+### Update Instruction
+```C#
+UpdateInstructionTypes(this Instruction instruction, TypeDefinition src, TypeDefinition dest)
+```
+This method updates the `Operand` of an `Instruction` when merging classes. The update strategy depends on the type of the operand. If the operand is a `ParameterDefinition`, `VariableDefinition`, `FieldReference`, `MethodReference`, `CallSite`, or `TypeReference`, it's updated accordingly.
+
+### Update MethodDefinition
+```C#
+UpdateInstructionTypes(this MethodDefinition method, TypeDefinition src, TypeDefinition dest)
+```
+This method updates all instructions in the method's body. If the instruction's operand type matches the source type, it is replaced with the destination type.
+
+## UpdateGettersAndSetters Extension Method
+The `MonoCecilExtensions` class provides an extension method for updating getter and setter references within `Mono.Cecil.PropertyDefinition` objects. This method ensures that the properties of the destination type reference the correct getters and setters after cloning from the source type.
+
+### Update PropertyDefinition
+```C#
+UpdateGettersAndSetters(this PropertyDefinition property, TypeDefinition src, TypeDefinition dest)
+```
+This method updates the getter and setter methods of a `PropertyDefinition` to reference the destination type when merging classes. It does the following:
+
+- Clones the existing getter/setter methods, so that any modifications do not affect the original methods
+- Calls `UpdateTypes` to update all type references within the methods' bodies from src to dest
+- Updates the declaring type of the methods to be dest
+- Finds the equivalent methods in dest (if they exist), and updates the property's getter/setter methods to reference them
+
+This process ensures that the property correctly interacts with the destination type after merging.
+
+## ImportReferences Extension Methods
+The `MonoCecilExtensions` class provides several extension methods for importing references from one module to another using `Mono.Cecil`. These methods are crucial when merging assembly classes as they allow the destination type to access types that may not have been referenced prior.
+
+### Import CustomAttribute References
+```C#
+ImportReferences(this CustomAttribute attribute, ModuleDefinition module)
+```
+This method imports the constructor reference for a given attribute into a module.
+
+### Import InterfaceImplementation References
+```C#
+ImportReferences(this InterfaceImplementation @interface, ModuleDefinition module)
+```
+This method imports the interface type and custom attributes references of an interface into a module.
+
+### Import FieldDefinition References
+```C#
+ImportReferences(this FieldDefinition field, ModuleDefinition module)
+```
+This method imports the field type and custom attributes references of a field into a module.
+
+### Import PropertyDefinition References
+```C#
+ImportReferences(this PropertyDefinition property, ModuleDefinition module)
+```
+This method imports the property type and custom attributes references of a property into a module.
+
+### Import ParameterDefinition References
+```C#
+ImportReferences(this ParameterDefinition parameter, ModuleDefinition module)
+```
+This method imports the parameter type and custom attributes references of a parameter into a module.
+
+### Import VariableDefinition References
+```C#
+ImportReferences(this VariableDefinition variable, ModuleDefinition module)
+```
+This method imports the variable type references of a variable into a module.
+
+### Import MethodDefinition References
+```C#
+ImportReferences(this MethodDefinition method, ModuleDefinition module)
+```
+This method imports the method type references and the custom attributes of a method into a module.
+
+### Import CallSite References
+```C#
+ImportReferences(this CallSite callSite, ModuleDefinition module)
+```
+This method imports the return type references of a CallSite into a module.
+
+### Import Instruction References
+```C#
+ImportReferences(this Instruction instruction, ModuleDefinition module)
+```
+This method imports the operand type references of an instruction into a module.
