@@ -172,6 +172,287 @@ public static class MonoCecilExtensions
 
     #endregion Base
 
+    // Extension method that handles adding types to an assembly.
+    #region AddType
+
+    /// <summary>
+    /// Adds a type to an assembly. This includes adding the type's fields, properties, and methods.
+    /// If the source type is nested, it will be added as a nested type within the parent type in the destination assembly.
+    /// </summary>
+    /// <param name="assembly">The assembly to which the type will be added.</param>
+    /// <param name="src">The source type that will be added to the assembly.</param>
+    /// <param name="avoidSignatureConflicts">Avoid name conflicts by adding a '_' suffix to the copied class name.</param>
+    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src, bool avoidSignatureConflicts = false)
+    {
+        // Check for signature conflict avoidance
+        var srcName = src.Name;
+        if (avoidSignatureConflicts) src.Name += "_";
+
+        // Create a new TypeDefinition with the same properties as the source type
+        var dest = new TypeDefinition(src.Namespace, src.Name, src.Attributes);
+
+        // If the source type isn't nested, add the new type directly to the assembly's types
+        // Otherwise, find the declaring type in the assembly and add the new type as a nested type
+        if (!src.IsNested)
+            assembly.MainModule.Types.Add(dest);
+        else
+            assembly.FindType(src.DeclaringType.FullName).NestedTypes.Add(dest);
+
+        // Set the base type of the new type to match the base type of the source type
+        dest.BaseType = src.BaseType;
+
+        // Add the fields, properties, and methods from the source type to the new type
+        dest.AddFieldsPropertiesAndMethods(src);
+
+        // Restore name
+        if (avoidSignatureConflicts) src.Name = srcName;
+    }
+
+    #endregion AddType
+
+    // Extension method that handles the addition of fields, properties, and methods from a source type to a destination type.
+    // This is a key part of merging two types, ensuring the destination type includes all necessary components from the source type.
+    #region AddFieldsPropertiesAndMethods
+
+    /// <summary>
+    /// Merges the source type into the destination type by cloning the fields, properties, and methods of the source, updating their types and adding them to the destination.
+    /// </summary>
+    /// <param name="dest">The destination type definition where fields, properties, and methods from source will be added.</param>
+    /// <param name="src">The source type definition whose fields, properties, and methods will be cloned and added to the destination.</param>
+    public static void AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
+    {
+        // Add nested types to the module
+        foreach (var subtype in src.NestedTypes)
+            dest.Module.Assembly.AddType(subtype);
+
+        // Clone attributes from the source and add to the destination
+        var clonedAttributes = new Collection<CustomAttribute>();
+        foreach (var attribute in src.CustomAttributes)
+        {
+            var clonedAttribute = attribute.Clone();
+            dest.CustomAttributes.Add(clonedAttribute);
+            clonedAttributes.Add(clonedAttribute);
+        }
+
+        // Clone interfaces from the source and add to the destination
+        var clonedInterfaces = new Collection<InterfaceImplementation>();
+        foreach (var @interface in src.Interfaces)
+        {
+            var clonedInterface = @interface.Clone();
+            dest.Interfaces.Add(clonedInterface);
+            clonedInterfaces.Add(clonedInterface);
+        }
+
+        // Clone fields from the source and add to the destination
+        var clonedFields = new Collection<FieldDefinition>();
+        foreach (var field in src.Fields)
+        {
+            var clonedField = field.Clone();
+            clonedFields.Add(clonedField);
+            dest.Fields.Add(clonedField);
+        }
+
+        // Clone properties from the source and add to the destination
+        var clonedProperties = new Collection<PropertyDefinition>();
+        foreach (var property in src.Properties)
+        {
+            var clonedProperty = property.Clone();
+            clonedProperties.Add(clonedProperty);
+            dest.Properties.Add(clonedProperty);
+        }
+
+        // Clone methods from the source (don't add to the destination yet)
+        var clonedMethods = new Collection<MethodDefinition>();
+        foreach (var method in src.Methods)
+        {
+            var clonedMethod = method.Clone();
+            clonedMethods.Add(clonedMethod);
+        }
+
+        // List for keeping track of methods that need further processing
+        var updatedMethods = new Collection<MethodDefinition>();
+
+        // Process each method
+        foreach (var clonedMethod in clonedMethods.ToList())
+        {
+            // Special handling for constructors
+            if (clonedMethod.Name is ".ctor" or ".cctor" or "Finalize")
+            {
+                // Temporarily set the declaring type of the cloned method to the destination type
+                // This is required to get the correct full name of the method for the FindMethod call
+                clonedMethod.DeclaringType = dest;
+
+                // Find an existing method in the destination type that matches the full name of the cloned method
+                // Note that the full name of a method includes the name of its declaring type
+                var destMethod = dest.FindMethod(clonedMethod.FullName);
+
+                // Reset the declaring type of the cloned method to null
+                // This is done because the cloned method hasn't been added to the destination type yet,
+                // and leaving the declaring type set will cause failures to add the method to the destination type
+                clonedMethod.DeclaringType = null;
+
+                // If destination already contains a constructor/destructor, merge the instructions
+                if (destMethod != null)
+                {
+                    var clonedInstructions = clonedMethod.Body.Instructions;
+                    var trimmedClonedInstructions = clonedInstructions.ToList();
+
+                    // For constructors
+                    if (clonedMethod.Name is ".ctor")
+                    {
+                        // Find the constructor call instruction and remove the instructions before it
+                        // This is done to prevent calling the base class constructor twice when merging
+                        var callIndex = trimmedClonedInstructions.FindIndex(x => x.OpCode == OpCodes.Call);
+
+                        // Check if callIndex is within valid range
+                        if (callIndex < 0 || callIndex >= trimmedClonedInstructions.Count)
+                            throw new Exception("Invalid Call Instruction Index in cloned method.");
+
+                        // Remove starting instructions
+                        trimmedClonedInstructions.RemoveRange(0, callIndex + 1);
+                        trimmedClonedInstructions.RemoveAt(trimmedClonedInstructions.Count - 1);
+
+                        // Insert the trimmed instructions to the existing constructor, just before the last instruction (ret)
+                        int insertIndex = destMethod.Body.Instructions.Count - 1;
+                        foreach (var clonedInstruction in trimmedClonedInstructions)
+                        {
+                            destMethod.Body.Instructions.Insert(insertIndex, clonedInstruction);
+                            insertIndex++;
+                        }
+                    }
+                    // For static constructors
+                    else if (clonedMethod.Name is ".cctor")
+                    {
+                        // Remove the last instruction (ret)
+                        trimmedClonedInstructions.RemoveAt(trimmedClonedInstructions.Count - 1);
+
+                        // Insert the trimmed instructions to the existing static constructor, just before the last instruction (ret)
+                        int insertIndex = destMethod.Body.Instructions.Count - 1;
+                        foreach (var clonedInstruction in trimmedClonedInstructions)
+                        {
+                            destMethod.Body.Instructions.Insert(insertIndex, clonedInstruction);
+                            insertIndex++;
+                        }
+                    }
+                    // For destructors
+                    else if (clonedMethod.Name is "Finalize")
+                    {
+                        // Find the leave.s instruction and remove the instructions after it.
+                        // This is done to prevent calling the base class destructor twice when merging.
+                        var trimIndex = trimmedClonedInstructions.FindIndex(x => x.OpCode == OpCodes.Leave_S);
+
+                        // Check if trimIndex is within valid range
+                        if (trimIndex < 0 || trimIndex >= trimmedClonedInstructions.Count)
+                            throw new Exception("Invalid trim index in cloned method.");
+
+                        // Remove instructions after leave.s (inclusive)
+                        trimmedClonedInstructions.RemoveRange(trimIndex, trimmedClonedInstructions.Count - trimIndex);
+
+                        // Insert the trimmed instructions to the existing destructor, at the beginning
+                        int insertionIndex = 0;
+                        foreach (var clonedInstruction in trimmedClonedInstructions)
+                        {
+                            destMethod.Body.Instructions.Insert(insertionIndex, clonedInstruction);
+                            insertionIndex++;
+                        }
+                    }
+
+                    // Remove the cloned constructor or destructor from the list of methods to add to the destination type
+                    _ = clonedMethods.Remove(clonedMethod);
+
+                    // Add the method to the list of methods to update since it has been modified
+                    updatedMethods.Add(destMethod);
+                }
+                else
+                {
+                    // Add the cloned constructor to the destination type
+                    updatedMethods.Add(clonedMethod);
+                }
+            }
+            else
+            {
+                // For non-constructor/non-destructor methods
+                updatedMethods.Add(clonedMethod);
+            }
+        }
+
+        // Add updated methods to the destination type
+        foreach (var method in clonedMethods) dest.Methods.Add(method);
+
+        // Add updated attributes, interfaces, fields, properties and methods to the update info
+        if (!assemblyUpdateInfo.TryGetValue(dest.Module.Assembly, out var updateInfo))
+            updateInfo = assemblyUpdateInfo[dest.Module.Assembly] = new();
+        foreach (var attribute in clonedAttributes) updateInfo.updatedAttributes.Add(attribute);
+        foreach (var @interface in clonedInterfaces) updateInfo.updatedInterfaces.Add(@interface);
+        foreach (var field in clonedFields) updateInfo.updatedFields.Add(field);
+        foreach (var property in clonedProperties) updateInfo.updatedProperties.Add(property);
+        foreach (var method in updatedMethods) updateInfo.updatedMethods.Add(method);
+
+        // Add source and destination types to the update info
+        updateInfo.srcTypes.Add(src);
+        updateInfo.destTypes.Add(dest);
+    }
+
+    #endregion AddFieldsPropertiesAndMethods
+
+    // Extension methods that handle the updating of fields, properties, and methods within a destination type after they have been cloned from a source type.
+    // These methods ensure that the newly added components in the destination type correctly reference the destination type, rather than the original source type.
+    #region UpdateFieldsPropertiesAndMethods
+
+    /// <summary>
+    /// Updates the types of attributes, interfaces, fields, properties, and methods within a given assembly.
+    /// This includes updating the types in interfaces, fields, properties, and methods. It also updates the getter and setter methods for properties,
+    /// updates the instruction types for methods, imports references for attributes, interfaces, fields, properties, and methods,
+    /// imports base types of each destination type, and swaps any duplicate methods in the destination types.
+    /// </summary>
+    /// <param name="assembly">The assembly to be updated. This assembly's types are matched against the source types and replaced with the corresponding destination types, based on previously registered update information.</param>
+    /// <param name="avoidSignatureConflicts">Avoid signature conflicts by changing original method parameters to be base object types for duplicate methods</param>
+    public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly, bool avoidSignatureConflicts = false)
+    {
+        // Check if update information exists for the assembly
+        if (assemblyUpdateInfo.TryGetValue(assembly, out var updateInfo))
+        {
+            // Update types in interfaces, fields, properties, and methods
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var @interface in updateInfo.updatedInterfaces) @interface.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var field in updateInfo.updatedFields) field.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var property in updateInfo.updatedProperties) property.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var method in updateInfo.updatedMethods) method.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+
+            // Update getter and setter methods for properties
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var property in updateInfo.updatedProperties) property.UpdateGettersAndSetters(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+
+            // Update instruction types for methods
+            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
+                foreach (var method in updateInfo.updatedMethods) method.UpdateInstructionTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+
+            // Check for optimization opportunities for methods
+            foreach (var method in updateInfo.updatedMethods) method.OptimizeInstructions();
+
+            // Import references for attributes, interfaces, fields, properties, and methods
+            foreach (var attribute in updateInfo.updatedAttributes) attribute.ImportReferences(assembly.MainModule);
+            foreach (var @interface in updateInfo.updatedInterfaces) @interface.ImportReferences(assembly.MainModule);
+            foreach (var field in updateInfo.updatedFields) field.ImportReferences(assembly.MainModule);
+            foreach (var property in updateInfo.updatedProperties) property.ImportReferences(assembly.MainModule);
+            foreach (var method in updateInfo.updatedMethods) method.ImportReferences(assembly.MainModule);
+
+            // Import base type of each dest type
+            foreach (var type in updateInfo.destTypes) type.BaseType = assembly.MainModule.ImportReference(type.BaseType);
+
+            // Swap any duplicate methods in the destination types
+            foreach (var type in updateInfo.destTypes) type.SwapDuplicateMethods(avoidSignatureConflicts);
+
+            // Remove the assembly from the update information collection
+            _ = assemblyUpdateInfo.Remove(assembly);
+        }
+    }
+
+    #endregion UpdateFieldsPropertiesAndMethods
+
     // Extension methods for cloning various Mono.Cecil objects.
     #region Clone
 
@@ -675,6 +956,7 @@ public static class MonoCecilExtensions
         // Import the variable type reference into the module
         variable.VariableType = module.ImportReference(variable.VariableType);
     }
+
     /// <summary>
     /// Imports the method type references and the custom attributes of a method into a module.
     /// </summary>
@@ -718,6 +1000,7 @@ public static class MonoCecilExtensions
         // Import the return type reference of the callSite into the module
         callSite.ReturnType = module.ImportReference(callSite.ReturnType);
     }
+
     /// <summary>
     /// Imports the operand type references of an instruction into a module.
     /// </summary>
@@ -879,229 +1162,6 @@ public static class MonoCecilExtensions
     }
 
     #endregion SwapMethods
-
-    // Extension method that handles adding types to an assembly.
-    #region AddType
-
-    /// <summary>
-    /// Adds a type to an assembly. This includes adding the type's fields, properties, and methods.
-    /// If the source type is nested, it will be added as a nested type within the parent type in the destination assembly.
-    /// </summary>
-    /// <param name="assembly">The assembly to which the type will be added.</param>
-    /// <param name="src">The source type that will be added to the assembly.</param>
-    /// <param name="avoidSignatureConflicts">Avoid name conflicts by adding a '_' suffix to the copied class name.</param>
-    public static void AddType(this AssemblyDefinition assembly, TypeDefinition src, bool avoidSignatureConflicts = false)
-    {
-        // Check for signature conflict avoidance
-        var srcName = src.Name;
-        if (avoidSignatureConflicts) src.Name += "_";
-
-        // Create a new TypeDefinition with the same properties as the source type
-        var dest = new TypeDefinition(src.Namespace, src.Name, src.Attributes);
-
-        // If the source type isn't nested, add the new type directly to the assembly's types
-        // Otherwise, find the declaring type in the assembly and add the new type as a nested type
-        if (!src.IsNested)
-            assembly.MainModule.Types.Add(dest);
-        else
-            assembly.FindType(src.DeclaringType.FullName).NestedTypes.Add(dest);
-
-        // Set the base type of the new type to match the base type of the source type
-        dest.BaseType = src.BaseType;
-
-        // Add the fields, properties, and methods from the source type to the new type
-        dest.AddFieldsPropertiesAndMethods(src);
-
-        // Restore name
-        if (avoidSignatureConflicts) src.Name = srcName;
-    }
-
-    #endregion AddType
-
-    // Extension method that handles the addition of fields, properties, and methods from a source type to a destination type.
-    // This is a key part of merging two types, ensuring the destination type includes all necessary components from the source type.
-    #region AddFieldsPropertiesAndMethods
-
-    /// <summary>
-    /// Merges the source type into the destination type by cloning the fields, properties, and methods of the source, updating their types and adding them to the destination.
-    /// </summary>
-    /// <param name="dest">The destination type definition where fields, properties, and methods from source will be added.</param>
-    /// <param name="src">The source type definition whose fields, properties, and methods will be cloned and added to the destination.</param>
-    public static void AddFieldsPropertiesAndMethods(this TypeDefinition dest, TypeDefinition src)
-    {
-        // Add nested types to the module
-        foreach (var subtype in src.NestedTypes)
-            dest.Module.Assembly.AddType(subtype);
-
-        // Clone attributes from the source and add to the destination
-        var clonedAttributes = new Collection<CustomAttribute>();
-        foreach (var attribute in src.CustomAttributes)
-        {
-            var clonedAttribute = attribute.Clone();
-            dest.CustomAttributes.Add(clonedAttribute);
-            clonedAttributes.Add(clonedAttribute);
-        }
-
-        // Clone interfaces from the source and add to the destination
-        var clonedInterfaces = new Collection<InterfaceImplementation>();
-        foreach (var @interface in src.Interfaces)
-        {
-            var clonedInterface = @interface.Clone();
-            dest.Interfaces.Add(clonedInterface);
-            clonedInterfaces.Add(clonedInterface);
-        }
-
-        // Clone fields from the source and add to the destination
-        var clonedFields = new Collection<FieldDefinition>();
-        foreach (var field in src.Fields)
-        {
-            var clonedField = field.Clone();
-            clonedFields.Add(clonedField);
-            dest.Fields.Add(clonedField);
-        }
-
-        // Clone properties from the source and add to the destination
-        var clonedProperties = new Collection<PropertyDefinition>();
-        foreach (var property in src.Properties)
-        {
-            var clonedProperty = property.Clone();
-            clonedProperties.Add(clonedProperty);
-            dest.Properties.Add(clonedProperty);
-        }
-
-        // Clone methods from the source (don't add to the destination yet)
-        var clonedMethods = new Collection<MethodDefinition>();
-        foreach (var method in src.Methods)
-        {
-            var clonedMethod = method.Clone();
-            clonedMethods.Add(clonedMethod);
-        }
-
-        // List for keeping track of methods that need further processing
-        var updatedMethods = new Collection<MethodDefinition>();
-
-        // Process each method
-        foreach (var clonedMethod in clonedMethods.ToList())
-        {
-            // Special handling for constructors
-            if (clonedMethod.Name is ".ctor" or ".cctor" or "Finalize")
-            {
-                // Temporarily set the declaring type of the cloned method to the destination type
-                // This is required to get the correct full name of the method for the FindMethod call
-                clonedMethod.DeclaringType = dest;
-
-                // Find an existing method in the destination type that matches the full name of the cloned method
-                // Note that the full name of a method includes the name of its declaring type
-                var destMethod = dest.FindMethod(clonedMethod.FullName);
-
-                // Reset the declaring type of the cloned method to null
-                // This is done because the cloned method hasn't been added to the destination type yet,
-                // and leaving the declaring type set will cause failures to add the method to the destination type
-                clonedMethod.DeclaringType = null;
-
-                // If destination already contains a constructor/destructor, merge the instructions
-                if (destMethod != null)
-                {
-                    var clonedInstructions = clonedMethod.Body.Instructions;
-                    var trimmedClonedInstructions = clonedInstructions.ToList();
-
-                    // For constructors
-                    if (clonedMethod.Name is ".ctor")
-                    {
-                        // Find the constructor call instruction and remove the instructions before it
-                        // This is done to prevent calling the base class constructor twice when merging
-                        var callIndex = trimmedClonedInstructions.FindIndex(x => x.OpCode == OpCodes.Call);
-
-                        // Check if callIndex is within valid range
-                        if (callIndex < 0 || callIndex >= trimmedClonedInstructions.Count)
-                            throw new Exception("Invalid Call Instruction Index in cloned method.");
-
-                        // Remove starting instructions
-                        trimmedClonedInstructions.RemoveRange(0, callIndex + 1);
-                        trimmedClonedInstructions.RemoveAt(trimmedClonedInstructions.Count - 1);
-
-                        // Insert the trimmed instructions to the existing constructor, just before the last instruction (ret)
-                        int insertIndex = destMethod.Body.Instructions.Count - 1;
-                        foreach (var clonedInstruction in trimmedClonedInstructions)
-                        {
-                            destMethod.Body.Instructions.Insert(insertIndex, clonedInstruction);
-                            insertIndex++;
-                        }
-                    }
-                    // For static constructors
-                    else if (clonedMethod.Name is ".cctor")
-                    {
-                        // Remove the last instruction (ret)
-                        trimmedClonedInstructions.RemoveAt(trimmedClonedInstructions.Count - 1);
-
-                        // Insert the trimmed instructions to the existing static constructor, just before the last instruction (ret)
-                        int insertIndex = destMethod.Body.Instructions.Count - 1;
-                        foreach (var clonedInstruction in trimmedClonedInstructions)
-                        {
-                            destMethod.Body.Instructions.Insert(insertIndex, clonedInstruction);
-                            insertIndex++;
-                        }
-                    }
-                    // For destructors
-                    else if (clonedMethod.Name is "Finalize")
-                    {
-                        // Find the leave.s instruction and remove the instructions after it.
-                        // This is done to prevent calling the base class destructor twice when merging.
-                        var trimIndex = trimmedClonedInstructions.FindIndex(x => x.OpCode == OpCodes.Leave_S);
-
-                        // Check if trimIndex is within valid range
-                        if (trimIndex < 0 || trimIndex >= trimmedClonedInstructions.Count)
-                            throw new Exception("Invalid trim index in cloned method.");
-
-                        // Remove instructions after leave.s (inclusive)
-                        trimmedClonedInstructions.RemoveRange(trimIndex, trimmedClonedInstructions.Count - trimIndex);
-
-                        // Insert the trimmed instructions to the existing destructor, at the beginning
-                        int insertionIndex = 0;
-                        foreach (var clonedInstruction in trimmedClonedInstructions)
-                        {
-                            destMethod.Body.Instructions.Insert(insertionIndex, clonedInstruction);
-                            insertionIndex++;
-                        }
-                    }
-
-                    // Remove the cloned constructor or destructor from the list of methods to add to the destination type
-                    _ = clonedMethods.Remove(clonedMethod);
-
-                    // Add the method to the list of methods to update since it has been modified
-                    updatedMethods.Add(destMethod);
-                }
-                else
-                {
-                    // Add the cloned constructor to the destination type
-                    updatedMethods.Add(clonedMethod);
-                }
-            }
-            else
-            {
-                // For non-constructor/non-destructor methods
-                updatedMethods.Add(clonedMethod);
-            }
-        }
-
-        // Add updated methods to the destination type
-        foreach (var method in clonedMethods) dest.Methods.Add(method);
-
-        // Add updated attributes, interfaces, fields, properties and methods to the update info
-        if (!assemblyUpdateInfo.TryGetValue(dest.Module.Assembly, out var updateInfo))
-            updateInfo = assemblyUpdateInfo[dest.Module.Assembly] = new();
-        foreach (var attribute in clonedAttributes) updateInfo.updatedAttributes.Add(attribute);
-        foreach (var @interface in clonedInterfaces) updateInfo.updatedInterfaces.Add(@interface);
-        foreach (var field in clonedFields) updateInfo.updatedFields.Add(field);
-        foreach (var property in clonedProperties) updateInfo.updatedProperties.Add(property);
-        foreach (var method in updatedMethods) updateInfo.updatedMethods.Add(method);
-
-        // Add source and destination types to the update info
-        updateInfo.srcTypes.Add(src);
-        updateInfo.destTypes.Add(dest);
-    }
-
-    #endregion AddFieldsPropertiesAndMethods
 
     // Methods to do with instruction optimizations
     #region InstructionOptimizations
@@ -1279,12 +1339,6 @@ public static class MonoCecilExtensions
     }
 #pragma warning restore RCS1003
 
-    #endregion InstructionOptimizations
-
-    // Extension methods that handle the updating of fields, properties, and methods within a destination type after they have been cloned from a source type.
-    // These methods ensure that the newly added components in the destination type correctly reference the destination type, rather than the original source type.
-    #region UpdateFieldsPropertiesAndMethods
-
     /// <summary>
     /// Optimizes a given method by removing any instructions
     /// that can be optimized out.
@@ -1313,59 +1367,6 @@ public static class MonoCecilExtensions
         }
     }
 
-    /// <summary>
-    /// Updates the types of attributes, interfaces, fields, properties, and methods within a given assembly.
-    /// This includes updating the types in interfaces, fields, properties, and methods. It also updates the getter and setter methods for properties,
-    /// updates the instruction types for methods, imports references for attributes, interfaces, fields, properties, and methods,
-    /// imports base types of each destination type, and swaps any duplicate methods in the destination types.
-    /// </summary>
-    /// <param name="assembly">The assembly to be updated. This assembly's types are matched against the source types and replaced with the corresponding destination types, based on previously registered update information.</param>
-    /// <param name="avoidSignatureConflicts">Avoid signature conflicts by changing original method parameters to be base object types for duplicate methods</param>
-    public static void UpdateFieldsPropertiesAndMethods(this AssemblyDefinition assembly, bool avoidSignatureConflicts = false)
-    {
-        // Check if update information exists for the assembly
-        if (assemblyUpdateInfo.TryGetValue(assembly, out var updateInfo))
-        {
-            // Update types in interfaces, fields, properties, and methods
-            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
-                foreach (var @interface in updateInfo.updatedInterfaces) @interface.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
-            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
-                foreach (var field in updateInfo.updatedFields) field.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
-            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
-                foreach (var property in updateInfo.updatedProperties) property.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
-            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
-                foreach (var method in updateInfo.updatedMethods) method.UpdateTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
-
-            // Update getter and setter methods for properties
-            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
-                foreach (var property in updateInfo.updatedProperties) property.UpdateGettersAndSetters(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
-
-            // Update instruction types for methods
-            for (int i = 0; i < updateInfo.destTypes.Count; ++i)
-                foreach (var method in updateInfo.updatedMethods) method.UpdateInstructionTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
-
-            // Check for optimization opportunities for methods
-            foreach (var method in updateInfo.updatedMethods) method.OptimizeInstructions();
-
-            // Import references for attributes, interfaces, fields, properties, and methods
-            foreach (var attribute in updateInfo.updatedAttributes) attribute.ImportReferences(assembly.MainModule);
-            foreach (var @interface in updateInfo.updatedInterfaces) @interface.ImportReferences(assembly.MainModule);
-            foreach (var field in updateInfo.updatedFields) field.ImportReferences(assembly.MainModule);
-            foreach (var property in updateInfo.updatedProperties) property.ImportReferences(assembly.MainModule);
-            foreach (var method in updateInfo.updatedMethods) method.ImportReferences(assembly.MainModule);
-
-            // Import base type of each dest type
-            foreach (var type in updateInfo.destTypes) type.BaseType = assembly.MainModule.ImportReference(type.BaseType);
-
-            // Swap any duplicate methods in the destination types
-            foreach (var type in updateInfo.destTypes) type.SwapDuplicateMethods(avoidSignatureConflicts);
-
-            // Remove the assembly from the update information collection
-            _ = assemblyUpdateInfo.Remove(assembly);
-        }
-    }
-
-    #endregion UpdateFieldsPropertiesAndMethods
-
+    #endregion InstructionOptimizations
 }
 #endif
