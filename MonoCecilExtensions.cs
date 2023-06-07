@@ -17,49 +17,49 @@ public static class MonoCecilExtensions
     /// <summary>
     /// Represents an information container for updating Mono.Cecil definitions.
     /// </summary>
-    private class UpdateInfo
+    public class UpdateInfo
     {
         /// <summary>
         /// A collection of CustomAttribute objects that have been updated.
         /// </summary>
-        internal readonly Collection<CustomAttribute> updatedAttributes = new();
+        public readonly Collection<CustomAttribute> updatedAttributes = new();
 
         /// <summary>
         /// A collection of InterfaceImplementation objects that have been updated.
         /// </summary>
-        internal readonly Collection<InterfaceImplementation> updatedInterfaces = new();
+        public readonly Collection<InterfaceImplementation> updatedInterfaces = new();
 
         /// <summary>
         /// A collection of FieldDefinition objects that have been updated.
         /// </summary>
-        internal readonly Collection<FieldDefinition> updatedFields = new();
+        public readonly Collection<FieldDefinition> updatedFields = new();
 
         /// <summary>
         /// A collection of PropertyDefinition objects that have been updated.
         /// </summary>
-        internal readonly Collection<PropertyDefinition> updatedProperties = new();
+        public readonly Collection<PropertyDefinition> updatedProperties = new();
 
         /// <summary>
         /// A collection of MethodDefinition objects that have been updated.
         /// </summary>
-        internal readonly Collection<MethodDefinition> updatedMethods = new();
+        public readonly Collection<MethodDefinition> updatedMethods = new();
 
         /// <summary>
         /// A collection of source TypeDefinition objects that are being merged.
         /// </summary>
-        internal readonly Collection<TypeDefinition> srcTypes = new();
+        public readonly Collection<TypeDefinition> srcTypes = new();
 
         /// <summary>
         /// A collection of destination TypeDefinition objects where source objects are merged into.
         /// </summary>
-        internal readonly Collection<TypeDefinition> destTypes = new();
+        public readonly Collection<TypeDefinition> destTypes = new();
     };
 
     /// <summary>
     /// A dictionary mapping from AssemblyDefinition objects to their corresponding UpdateInfo objects.
     /// Used to keep track of the updates made to each assembly.
     /// </summary>
-    private static readonly Dictionary<AssemblyDefinition, UpdateInfo> assemblyUpdateInfo = new();
+    public static readonly Dictionary<AssemblyDefinition, UpdateInfo> assemblyUpdateInfo = new();
 
     public static readonly Collection<string> additionalSearchDirectories = new();
 
@@ -1125,7 +1125,7 @@ public static class MonoCecilExtensions
     /// If the stack balance is zero and the type of the value at the top of the stack
     /// matches the type conversion, the conversion is unnecessary and the method returns true.
     /// </remarks>
-    private static bool CanBeOptimizedOut(this Instruction instruction, MethodDefinition method)
+    public static bool CanBeOptimizedOut(this Instruction instruction, MethodDefinition method)
     {
         // Check if the instruction is a type conversion instruction (instance cast or class cast)
         if (instruction.OpCode == OpCodes.Isinst || instruction.OpCode == OpCodes.Castclass)
