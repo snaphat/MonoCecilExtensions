@@ -20,7 +20,7 @@ Nested within the `MonoCecilExtensions` class, the `UpdateInfo` class serves as 
 The `assemblyUpdateInfo` is a static readonly property within the `MonoCecilExtensions` class. It's a dictionary mapping from `AssemblyDefinition` objects to their corresponding `UpdateInfo` objects, making it an essential tool for keeping track of the updates made to each assembly.
 
 ### Additional Search Directories
-`MonoCecilExtensions` also includes a static readonly property `additionalSearchDirectories`, which is a collection of string values specifying extra directories to be included in the search during the IL code manipulation process.
+`MonoCecilExtensions` also includes a static readonly property `additionalSearchDirectories`, which is a collection of string values specifying extra directories to be included in the search when resolving assembly types.
 
 More details about other methods and functionalities of the `MonoCecilExtensions` class are provided in the following sections of the document.
 
