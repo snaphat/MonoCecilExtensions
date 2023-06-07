@@ -163,7 +163,7 @@ public static class MonoCecilExtensions
     {
         var collection = new Collection<MethodDefinition>();
 
-        // This function checks each method in the type's Methods collection, 
+        // This function checks each method in the type's Methods collection,
         // and adds those methods to the collection whose full name or simple name matches the provided method signature.
         foreach (var item in type.Methods.Where(m => m.FullName == methodSignature || m.Name == methodSignature))
             collection.Add(item);
@@ -416,7 +416,6 @@ public static class MonoCecilExtensions
     /// <param name="dest">The destination type which could replace the source type.</param>
     public static void UpdateTypes(this ParameterDefinition parameter, TypeDefinition src, TypeDefinition dest)
     {
-
         // If the parameter's type matches the source type, update it to the destination type
         if (parameter.ParameterType == src) parameter.ParameterType = dest;
     }
@@ -1104,14 +1103,220 @@ public static class MonoCecilExtensions
 
     #endregion AddFieldsPropertiesAndMethods
 
+    // Methods to do with instruction optimizations
+    #region InstructionOptimizations
+
+#pragma warning disable RCS1003
+    /// <summary>
+    /// Determines if a given instruction within a method can be optimized out.
+    /// Specifically, this method looks for type conversion instructions (Isinst or Castclass)
+    /// that are unnecessary because the type of the value at the top of the stack is
+    /// already the target conversion type.
+    /// </summary>
+    /// <param name="instruction">The instruction to be checked for optimization.</param>
+    /// <param name="method">The method definition that contains the instruction.</param>
+    /// <returns>Returns true if the instruction can be optimized out. Otherwise, returns false.</returns>
+    /// <remarks>
+    /// This method works by examining the instructions before the given instruction in the method,
+    /// maintaining a conceptual "stack balance" and tracking the type of the value at the top of the stack.
+    /// The stack balance is a measure of the net effect of the instructions on the stack,
+    /// with a positive balance indicating more values have been pushed than popped,
+    /// and a negative balance indicating more values have been popped than pushed.
+    /// If the stack balance is zero and the type of the value at the top of the stack
+    /// matches the type conversion, the conversion is unnecessary and the method returns true.
+    /// </remarks>
+    private static bool CanBeOptimizedOut(this Instruction instruction, MethodDefinition method)
+    {
+        // Check if the instruction is a type conversion instruction (instance cast or class cast)
+        if (instruction.OpCode == OpCodes.Isinst || instruction.OpCode == OpCodes.Castclass)
+        {
+            // Get the type to which the conversion is being made
+            var typeConversionType = instruction.Operand as TypeReference;
+            // Initialize stack balance. This will help to determine the net stack effect of the instructions
+            int stackBalance = 0;
+            // Move to the previous instruction
+            instruction = instruction.Previous;
+
+            // Process previous instructions
+            while (instruction != null)
+            {
+                // Determine how the current instruction modifies the stack
+                var pushBehaviour = instruction.OpCode.StackBehaviourPush;
+                var popBehaviour = instruction.OpCode.StackBehaviourPop;
+
+                // Fullname of any type extracted from the instruction
+                string extractedFullName = null;
+
+                // This is an exhaustive check for control flow change instructions. These instructions will cause a jump
+                // in execution or a termination of the function, thus ending our analysis.
+                if (instruction.OpCode == OpCodes.Ret || // Return from the current method.
+                    instruction.OpCode == OpCodes.Throw || // Throw an exception.
+                    instruction.OpCode == OpCodes.Rethrow || // Rethrow the current exception.
+                    instruction.OpCode == OpCodes.Endfilter || // End the filter clause of an exception block and branch to the exception handler.
+                    instruction.OpCode == OpCodes.Endfinally || // Transfer control from the exception block of a try or catch block.
+                    instruction.OpCode == OpCodes.Leave || instruction.OpCode == OpCodes.Leave_S || // Exit a protected region of code.
+                    instruction.OpCode == OpCodes.Jmp || // Jump to the method pointed to by the method pointer loaded on the stack.
+                    instruction.OpCode == OpCodes.Switch || // Switch control to one of several locations.
+                    instruction.OpCode == OpCodes.Br || instruction.OpCode == OpCodes.Br_S || // Unconditional branch to target.
+                    instruction.OpCode == OpCodes.Brfalse || instruction.OpCode == OpCodes.Brfalse_S || // Branch to target if value is zero (false).
+                    instruction.OpCode == OpCodes.Brtrue || instruction.OpCode == OpCodes.Brtrue_S || // Branch to target if value is non-zero (true).
+                    instruction.OpCode == OpCodes.Beq || instruction.OpCode == OpCodes.Beq_S ||  // Branch to target if two values are equal.
+                    instruction.OpCode == OpCodes.Bne_Un || instruction.OpCode == OpCodes.Bne_Un_S || // Branch to target if two values are not equal.
+                    instruction.OpCode == OpCodes.Bge || instruction.OpCode == OpCodes.Bge_S || instruction.OpCode == OpCodes.Bge_Un || instruction.OpCode == OpCodes.Bge_Un_S || // Branch to target if value1 >= value2 (unsigned or unordered).
+                    instruction.OpCode == OpCodes.Bgt || instruction.OpCode == OpCodes.Bgt_S || instruction.OpCode == OpCodes.Bgt_Un || instruction.OpCode == OpCodes.Bgt_Un_S || // Branch to target if value1 > value2 (unsigned or unordered).
+                    instruction.OpCode == OpCodes.Ble || instruction.OpCode == OpCodes.Ble_S || instruction.OpCode == OpCodes.Ble_Un || instruction.OpCode == OpCodes.Ble_Un_S || // Branch to target if value1 <= value2 (unsigned or unordered).
+                    instruction.OpCode == OpCodes.Blt || instruction.OpCode == OpCodes.Blt_S || instruction.OpCode == OpCodes.Blt_Un || instruction.OpCode == OpCodes.Blt_Un_S) // Branch to target if value1 < value2 (unsigned or unordered).
+                    return false; // Return from method
+
+                // Check if instruction is for loading a field onto the stack
+                // In this case, the type of the value is the type of the field.
+                else if (instruction.OpCode == OpCodes.Ldfld || // load field value onto stack
+                         instruction.OpCode == OpCodes.Ldflda || // load field address onto stack
+                         instruction.OpCode == OpCodes.Ldsfld || // load static field value onto stack
+                         instruction.OpCode == OpCodes.Ldsflda) // load static field address onto stack
+                    extractedFullName = ((FieldReference)instruction.Operand).FieldType.FullName;
+
+                // Check if instruction is for loading an argument onto the stack
+                // In this case, the type of the value is the type of the argument.
+                else if (instruction.OpCode == OpCodes.Ldarg || // load argument onto stack
+                         instruction.OpCode == OpCodes.Ldarg_S) // short form for loading argument onto stack
+                    extractedFullName = ((ParameterReference)instruction.Operand).ParameterType.FullName;
+
+                // Check for loading argument at index 0 onto stack
+                else if (instruction.OpCode == OpCodes.Ldarg_0) // load argument at index 0 onto stack
+                    extractedFullName = (method.IsStatic ? method.Parameters[0].ParameterType : method.DeclaringType).FullName;
+                // Check for loading argument at index 1 onto stack
+                else if (instruction.OpCode == OpCodes.Ldarg_1) // load argument at index 1 onto stack
+                    extractedFullName = (method.IsStatic ? method.Parameters[1].ParameterType : method.Parameters[0].ParameterType).FullName;
+                // Check for loading argument at index 2 onto stack
+                else if (instruction.OpCode == OpCodes.Ldarg_2) // load argument at index 2 onto stack
+                    extractedFullName = (method.IsStatic ? method.Parameters[2].ParameterType : method.Parameters[1].ParameterType).FullName;
+                // Check for loading argument at index 3 onto stack
+                else if (instruction.OpCode == OpCodes.Ldarg_3) // load argument at index 3 onto stack
+                    extractedFullName = (method.IsStatic ? method.Parameters[3].ParameterType : method.Parameters[2].ParameterType).FullName;
+
+                // Check for loading local variable onto stack
+                else if (instruction.OpCode == OpCodes.Ldloc || // load local variable onto stack
+                         instruction.OpCode == OpCodes.Ldloc_S) // short form for loading local variable onto stack
+                    extractedFullName = ((VariableReference)instruction.Operand).VariableType.FullName;
+                // Check for loading local variable at index 0 onto stack
+                else if (instruction.OpCode == OpCodes.Ldloc_0) // load local variable at index 0 onto stack
+                    extractedFullName = method.Body.Variables[0].VariableType.FullName;
+                // Check for loading local variable at index 1 onto stack
+                else if (instruction.OpCode == OpCodes.Ldloc_1)// load local variable at index 1 onto stack
+                    extractedFullName = method.Body.Variables[1].VariableType.FullName;
+                // Check for loading local variable at index 2 onto stack
+                else if (instruction.OpCode == OpCodes.Ldloc_2)// load local variable at index 2 onto stack
+                    extractedFullName = method.Body.Variables[2].VariableType.FullName;
+                // Check for loading local variable at index 3 onto stack
+                else if (instruction.OpCode == OpCodes.Ldloc_3)// load local variable at index 3 onto stack
+                    extractedFullName = method.Body.Variables[3].VariableType.FullName;
+
+                // Check for calling a method and pushing return value onto the stack, loading function pointer onto the stack
+                else if (instruction.OpCode == OpCodes.Callvirt || // call method virtually and push return value onto stack
+                         instruction.OpCode == OpCodes.Call || // call method and push return value onto stack
+                         instruction.OpCode == OpCodes.Ldftn || // load method pointer onto stack
+                         instruction.OpCode == OpCodes.Ldvirtftn) // load virtual method pointer onto stack
+                    extractedFullName = ((MethodReference)instruction.Operand).ReturnType.FullName;
+
+                // Check for calling a method indicated on the stack with arguments, pushing return value onto stack
+                else if (instruction.OpCode == OpCodes.Calli) // call method indicated on the stack with arguments, pushing return value onto stack
+                    extractedFullName = ((CallSite)instruction.Operand).ReturnType.FullName;
+
+                // Check for creating a new object and pushing object reference onto stack
+                else if (instruction.OpCode == OpCodes.Newobj) // create a new object and push object reference onto stack
+                    extractedFullName = ((MethodReference)instruction.Operand).DeclaringType.FullName;
+
+                // Check for loading an object, array element, or pointer onto stack, creating a new array, or creating a typed reference
+                else if (instruction.OpCode == OpCodes.Ldobj || // load object onto stack
+                         instruction.OpCode == OpCodes.Ldelem_Any || // load element of an object array onto stack
+                         instruction.OpCode == OpCodes.Newarr || // create a new array and push reference onto stack
+                         instruction.OpCode == OpCodes.Mkrefany) // push a typed reference onto stack
+                    extractedFullName = ((TypeReference)instruction.Operand).FullName;
+
+                // Check for loading a string onto stack
+                else if (instruction.OpCode == OpCodes.Ldstr) // load a string onto stack
+                    extractedFullName = typeof(string).FullName;
+
+                // If the type of the value currently at the top of the stack matches the type conversion
+                // and the stack is balanced, the conversion is unnecessary
+                if (stackBalance == 0 && extractedFullName == typeConversionType.FullName)
+                    return true;
+
+                // Dup doesn't change the type of the top of the stack, so adjust stack balance to ignore it
+                if (instruction.OpCode == OpCodes.Dup)
+                    stackBalance--;
+
+                // Adjust stack balance according to the current instruction's push behavior
+                //if (pushBehaviour == StackBehaviour.Push0)
+                if (pushBehaviour == StackBehaviour.Push1 || pushBehaviour == StackBehaviour.Pushi || pushBehaviour == StackBehaviour.Pushref ||
+                    pushBehaviour == StackBehaviour.Pushi8 || pushBehaviour == StackBehaviour.Pushr4 || pushBehaviour == StackBehaviour.Pushr8 ||
+                    pushBehaviour == StackBehaviour.Varpush)
+                    stackBalance++;
+                else if (pushBehaviour == StackBehaviour.Push1_push1)
+                    stackBalance += 2;
+
+                // Adjust stack balance according to the current instruction's pop behavior
+                //if (popBehaviour == StackBehaviour.Pop0)
+                if (popBehaviour == StackBehaviour.Pop1 || popBehaviour == StackBehaviour.Popi || popBehaviour == StackBehaviour.Popref ||
+                         popBehaviour == StackBehaviour.Varpop)
+                    stackBalance--;
+                else if (popBehaviour == StackBehaviour.Pop1_pop1 || popBehaviour == StackBehaviour.Popi_popi || popBehaviour == StackBehaviour.Popi_pop1 ||
+                         popBehaviour == StackBehaviour.Popi_popi8 || popBehaviour == StackBehaviour.Popi_popr4 || popBehaviour == StackBehaviour.Popi_popr8 ||
+                         popBehaviour == StackBehaviour.Popref_pop1 || popBehaviour == StackBehaviour.Popref_popi)
+                    stackBalance -= 2;
+                else if (popBehaviour == StackBehaviour.Popi_popi_popi || popBehaviour == StackBehaviour.Popref_popi_popi || popBehaviour == StackBehaviour.Popref_popi_popi8 ||
+                         popBehaviour == StackBehaviour.Popref_popi_popr4 || popBehaviour == StackBehaviour.Popref_popi_popr8 || popBehaviour == StackBehaviour.Popref_popi_popref)
+                    stackBalance -= 3;
+
+                // Move to previous instruction
+                instruction = instruction.Previous;
+            }
+        }
+
+        // Return that the instruction cannot be optimized
+        return false;
+    }
+#pragma warning restore RCS1003
+
+    #endregion InstructionOptimizations
+
     // Extension methods that handle the updating of fields, properties, and methods within a destination type after they have been cloned from a source type.
     // These methods ensure that the newly added components in the destination type correctly reference the destination type, rather than the original source type.
     #region UpdateFieldsPropertiesAndMethods
 
     /// <summary>
+    /// Optimizes a given method by removing any instructions
+    /// that can be optimized out.
+    /// </summary>
+    /// <param name="method">
+    /// The MethodDefinition object to be optimized. This method contains a list
+    /// of instructions that are to be checked and potentially removed if they can be optimized out.
+    /// </param>
+    public static void OptimizeInstructions(this MethodDefinition method)
+    {
+        // If the method doesn't have a body (i.e., it's an abstract or external method), then exit
+        if (!method.HasBody) return;
+
+        // Iterate over each instruction in the method body
+        for (int i = 0; i < method.Body.Instructions.Count - 1; ++i)
+        {
+            // If the current instruction can be optimized out according to the CanBeOptimizedOut method, remove it
+            if (method.Body.Instructions[i].CanBeOptimizedOut(method))
+            {
+                // Remove the current instruction from the method body
+                method.Body.Instructions.RemoveAt(i);
+
+                // Decrement the loop index to account for the removal. This ensures that the next iteration doesn't skip any instructions.
+                i--;
+            }
+        }
+    }
+
+    /// <summary>
     /// Updates the types of attributes, interfaces, fields, properties, and methods within a given assembly.
-    /// This includes updating the types in interfaces, fields, properties, and methods. It also updates the getter and setter methods for properties, 
-    /// updates the instruction types for methods, imports references for attributes, interfaces, fields, properties, and methods, 
+    /// This includes updating the types in interfaces, fields, properties, and methods. It also updates the getter and setter methods for properties,
+    /// updates the instruction types for methods, imports references for attributes, interfaces, fields, properties, and methods,
     /// imports base types of each destination type, and swaps any duplicate methods in the destination types.
     /// </summary>
     /// <param name="assembly">The assembly to be updated. This assembly's types are matched against the source types and replaced with the corresponding destination types, based on previously registered update information.</param>
@@ -1138,6 +1343,9 @@ public static class MonoCecilExtensions
             // Update instruction types for methods
             for (int i = 0; i < updateInfo.destTypes.Count; ++i)
                 foreach (var method in updateInfo.updatedMethods) method.UpdateInstructionTypes(updateInfo.srcTypes[i], updateInfo.destTypes[i]);
+
+            // Check for optimization opportunities for methods
+            foreach (var method in updateInfo.updatedMethods) method.OptimizeInstructions();
 
             // Import references for attributes, interfaces, fields, properties, and methods
             foreach (var attribute in updateInfo.updatedAttributes) attribute.ImportReferences(assembly.MainModule);
