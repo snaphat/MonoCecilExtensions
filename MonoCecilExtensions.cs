@@ -638,23 +638,21 @@ public static class MonoCecilExtensions
             // Now fix up the branch targets.
             foreach (var instruction in clonedMethod.Body.Instructions)
             {
-                // If the instruction is a branch instruction, fix up its target.
-                if (instruction.OpCode.FlowControl == FlowControl.Branch ||
-                    instruction.OpCode.FlowControl == FlowControl.Cond_Branch)
+                switch (instruction.OpCode.OperandType)
                 {
-                    instruction.Operand = instructionMapping[(Instruction)instruction.Operand];
-                }
-
-                // If the instruction is a switch instruction, fix up its targets.
-                if (instruction.OpCode == OpCodes.Switch)
-                {
-                    var oldTargets = (Instruction[])instruction.Operand;
-                    var newTargets = new Instruction[oldTargets.Length];
-                    for (int i = 0; i < oldTargets.Length; ++i)
-                    {
-                        newTargets[i] = instructionMapping[oldTargets[i]];
-                    }
-                    instruction.Operand = newTargets;
+                    // If the instruction is a branch instruction, fix up its target.
+                    case OperandType.ShortInlineBrTarget:
+                    case OperandType.InlineBrTarget:
+                        instruction.Operand = instructionMapping[(Instruction)instruction.Operand];
+                        break;
+                    // If the instruction is a switch instruction, fix up its targets.
+                    case OperandType.InlineSwitch:
+                        var oldTargets = (Instruction[])instruction.Operand;
+                        var newTargets = new Instruction[oldTargets.Length];
+                        for (int i = 0; i < oldTargets.Length; ++i)
+                            newTargets[i] = instructionMapping[oldTargets[i]];
+                        instruction.Operand = newTargets;
+                        break;
                 }
             }
         }
