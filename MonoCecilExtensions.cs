@@ -860,6 +860,7 @@ public static class MonoCecilExtensions
 
     /// <summary>
     /// Updates all instructions in the method's body.
+    /// If the instruction's operand type matches the source type, it is replaced with the destination type.
     /// </summary>
     /// <param name="method">Method whose instructions are to be updated.</param>
     /// <param name="src">The original type which is being replaced.</param>
