@@ -153,6 +153,13 @@ Clone(this Instruction instruction)
 ```
 This method clones an `Instruction` object. The parameter to be cloned is an `Instruction` and it returns a clone of the original instruction.
 
+### Clone Collection\<Instruction\>
+```C#
+Clone(this Collection<Instruction> instructions)
+```
+This method clones all instructions in a `Collection<Instruction>` object. The parameter to be cloned is a `Collection<Instruction>` and it returns a clone of the original instructions.
+
+
 ### Clone MethodDefinition
 ```C#
 Clone(this MethodDefinition method)

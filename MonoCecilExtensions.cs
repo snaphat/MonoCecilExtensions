@@ -590,6 +590,27 @@ public static class MonoCecilExtensions
     }
 
     /// <summary>
+    /// Clones all instructions in the collection.
+    /// </summary>
+    /// <param name="instructions">The collection of instructions to be cloned.</param>
+    /// <returns>A new collection containing clones of the original instructions.</returns>
+    public static Collection<Instruction> Clone(this Collection<Instruction> instructions)
+    {
+        if (instructions == null)
+            throw new ArgumentNullException(nameof(instructions));
+
+        var clonedInstructions = new Collection<Instruction>();
+
+        foreach (var instruction in instructions)
+        {
+            // Add to the cloned collection
+            clonedInstructions.Add(instruction.Clone());
+        }
+
+        return clonedInstructions;
+    }
+
+    /// <summary>
     /// Clones a MethodDefinition.
     /// </summary>
     /// <param name="method">The method to be cloned.</param>
